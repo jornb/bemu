@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.29)
+project(bemu)
+
+
+add_executable(bemugb
+        src/gb/cartridge.cpp
+        src/gb/cpu.cpp
+        src/gb/main.cpp
+)
+
+target_link_libraries(bemugb PRIVATE spdlog::spdlog magic_enum::magic_enum)
+target_include_directories(bemugb PRIVATE include)
+
+
+add_subdirectory(third_party)
