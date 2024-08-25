@@ -28,6 +28,7 @@ void Io::write(u16 address, const u8 value) {
         // LCD
         const auto lcd_ptr = reinterpret_cast<u8*>(&m_lcd);
         lcd_ptr[address - 0xFF40] = value;
+        return;
     }
 
     throw std::runtime_error(fmt::format("Unsupported write to I/O address {:04x}", address));

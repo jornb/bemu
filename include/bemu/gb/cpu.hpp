@@ -27,6 +27,8 @@ struct CpuRegisters {
     u16 pc = 0x0100;  ///< Program counter
     u16 sp = 0xFFFE;  ///< Stack pointer
 
+    void set_z(bool z);
+
     [[nodiscard]] u8 get_u8(RegisterType type) const;
     void set_u8(RegisterType type, u8 value);
 
@@ -64,5 +66,6 @@ struct Cpu {
     void execute_ld(RegisterType reg, u8 value);
     void execute_ld(u16 address, RegisterType reg);
     void execute_inc(RegisterType reg);
+    void execute_xor(RegisterType input_reg);
 };
 }  // namespace bemu::gb

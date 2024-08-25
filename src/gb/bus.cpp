@@ -32,6 +32,13 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return m_io.read(address);
     }
+    if (0xFEA0 <= address && address <= 0xFEFF) {
+        // Nintendo indicates use of this area is prohibited. This area returns $FF when OAM is blocked, and otherwise
+        // the behavior depends on the hardware revision.
+        //
+        // * On DMG, MGB, SGB, and SGB2, reads during OAM block trigger OAM corruption. Reads otherwise return $00.
+        return 0x00;
+    }
     if (address == 0xFFFF) {
         return m_emulator.m_cpu.m_ie_register;
     }
@@ -47,6 +54,10 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
     }
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return m_io.write(address, value);
+    }
+    if (0xFEA0 <= address && address <= 0xFEFF) {
+        // Reserved
+        return;
     }
     if (address == 0xFFFF) {
         m_emulator.m_cpu.m_ie_register = value;

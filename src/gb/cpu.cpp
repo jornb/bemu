@@ -9,6 +9,8 @@
 
 using namespace bemu::gb;
 
+void CpuRegisters::set_z(const bool z) { set_bit(f, 7, z); }
+
 u8 CpuRegisters::get_u8(const RegisterType type) const {
     if (is_16bit(type)) {
         throw std::runtime_error(fmt::format("Tried to get CPU register {} as 8 bit", magic_enum::enum_name(type)));
@@ -178,6 +180,11 @@ void Cpu::execute_next_instruction() {
             execute_ld(RegisterType::A, d8);
             return;
         }
+        case 0xAF: {  // XOR A
+            spdlog::info(fmt::format("{} XOR A", prefix));
+            execute_xor(RegisterType::A);
+            return;
+        }
         case 0xC3: {  // JP a16
             const auto a16_lo = fetch_u8();
             const auto a16_hi = fetch_u8();
@@ -231,4 +238,10 @@ void Cpu::execute_inc(const RegisterType reg) {
         const auto new_value = old_value + 1;
         m_registers.set_u8(reg, new_value);
     }
+}
+
+void Cpu::execute_xor(const RegisterType input_reg) {
+    const auto data = m_registers.get_u8(input_reg);
+    m_registers.a ^= data;
+    m_registers.set_z(m_registers.a == 0);
 }
