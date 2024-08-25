@@ -7,6 +7,8 @@ using namespace bemu::gb;
 
 std::string CartridgeHeader::get_title() const { return title; }
 
+const CartridgeHeader& Cartridge::header() const { return *reinterpret_cast<const CartridgeHeader*>(&m_data[0x0100]); }
+
 Cartridge Cartridge::from_file(const std::string& filename) {
     std::ifstream file{filename, std::ios::binary};
     if (!file.is_open()) {
@@ -22,12 +24,23 @@ Cartridge Cartridge::from_file(const std::string& filename) {
     }
 
     Cartridge cartridge;
-    cartridge.data.resize(size, 0x00);
+    cartridge.m_data.resize(size, 0x00);
 
-    file.read(reinterpret_cast<char*>(cartridge.data.data()), size);
+    file.read(reinterpret_cast<char*>(cartridge.m_data.data()), size);
     return cartridge;
 }
 
-const CartridgeHeader& Cartridge::header() const {
-    return *reinterpret_cast<const CartridgeHeader*>(&data[0x0100]);
+u8 Cartridge::read(const u16 address) const {
+    if (address >= m_data.size()) {
+        throw std::runtime_error(fmt::format("Address {} too large", address));
+    }
+    return m_data[address];
+}
+
+void Cartridge::write(const u16 address, const u8 value) {
+    if (address >= m_data.size()) {
+        throw std::runtime_error(fmt::format("Address {} too large", address));
+    }
+
+    m_data[address] = value;
 }

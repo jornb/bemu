@@ -2,6 +2,7 @@
 
 #include <bemu/gb/cartridge.hpp>
 #include <bemu/gb/cpu.hpp>
+#include <bemu/gb/emulator.hpp>
 #include <cstdio>
 #include <magic_enum.hpp>
 
@@ -16,7 +17,7 @@ int main(int argc, const char *argv[]) {
     try {
         spdlog::info("Loading ROM {}", argv[1]);
         auto cartridge = Cartridge::from_file(argv[1]);
-        const auto& header = cartridge.header();
+        const auto &header = cartridge.header();
 
         // spdlog::info("\t", magic_enum::enum_name<RegisterType::A>());
 
@@ -26,6 +27,10 @@ int main(int argc, const char *argv[]) {
         spdlog::info("\tROM size       : {}", magic_enum::enum_name(header.rom_size));
         spdlog::info("\tEntry          : {:02x} {:02x} {:02x} {:02x}", header.entry[0], header.entry[1],
                      header.entry[2], header.entry[3]);
+
+
+        Emulator emulator{cartridge};
+        emulator.run();
     } catch (const std::exception &e) {
         spdlog::critical(e.what());
         return -1;

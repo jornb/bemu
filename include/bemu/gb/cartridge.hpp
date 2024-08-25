@@ -3,7 +3,7 @@
 #include <string>
 #include <vector>
 
-#include "..\types.hpp"
+#include "types.hpp"
 
 namespace bemu::gb {
 
@@ -142,11 +142,15 @@ struct CartridgeHeader {
 #pragma pack(pop)
 
 struct Cartridge {
-    const CartridgeHeader& header() const;
-
     static Cartridge from_file(const std::string& filename);
 
-    std::vector<u8> data;
+    [[nodiscard]] const CartridgeHeader& header() const;
+
+    [[nodiscard]] u8 read(u16 address) const;
+    void write(u16 address, u8 value);
+
+private:
+    std::vector<u8> m_data;
 };
 
 }  // namespace bemu::gb

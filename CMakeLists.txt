@@ -4,7 +4,10 @@ project(bemu)
 
 add_executable(bemugb
         src/gb/cartridge.cpp
+        src/gb/bus.cpp
         src/gb/cpu.cpp
+        src/gb/emulator.cpp
+        src/gb/io.cpp
         src/gb/main.cpp
 )
 
