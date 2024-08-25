@@ -1,0 +1,9 @@
+[submodule "third_party/magic_enum"]
+	path = third_party/magic_enum
+	url = https://github.com/Neargye/magic_enum.git
+[submodule "third_party/spdlog"]
+	path = third_party/spdlog
+	url = https://github.com/gabime/spdlog.git
+[submodule "third_party/olcPixelGameEngine"]
+	path = third_party/olcPixelGameEngine
+	url = https://github.com/OneLoneCoder/olcPixelGameEngine.git
