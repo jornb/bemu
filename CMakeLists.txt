@@ -6,9 +6,12 @@ add_executable(bemugb
         src/gb/cartridge.cpp
         src/gb/bus.cpp
         src/gb/cpu.cpp
+        src/gb/cpu_cb.cpp
         src/gb/emulator.cpp
         src/gb/io.cpp
+        src/gb/lcd.cpp
         src/gb/main.cpp
+        src/gb/ppu.cpp
         src/gb/timer.cpp
 )
 

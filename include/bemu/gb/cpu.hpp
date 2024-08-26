@@ -77,8 +77,14 @@ struct Cpu {
     u8 m_ie_register = 0x00;
     u8 m_int_flags;
 
-    u8 fetch_u8();
-    u16 fetch_u16();  ///< Little-endian
+    u8 fetch_u8();    ///< Fetch u8 from program counter
+    u16 fetch_u16();  ///< Fetch u16 from program counter, little-endian
+
+    /// Read 8-bit "register", using 16-bit registers as address
+    u8 read_data_u8(Register reg, bool add_cycles = true);
+
+    /// Write 8-bit "register", using 16-bit registers as address
+    void write_data_u8(Register reg, u8 value, bool add_cycles = true);
 
     void stack_push8(u8 value);
     u8 stack_pop8();
@@ -87,6 +93,8 @@ struct Cpu {
 
     bool step();
     void execute_next_instruction();
+
+    bool execute_cb(const std::string &debug_prefix);
 
     bool execute_ld(const std::string &debug_prefix, u8 opcode);
     bool execute_ld_d(const std::string &debug_prefix, Register reg);

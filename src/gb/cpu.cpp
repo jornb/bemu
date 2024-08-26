@@ -124,6 +124,23 @@ u16 Cpu::fetch_u16() {
     return combine_bytes(hi, lo);
 }
 
+u8 Cpu::read_data_u8(const Register reg, const bool add_cycles) {
+    if (is_16bit(reg)) {
+        const auto address = m_registers.get_u16(reg);
+        return m_emulator.m_bus.read_u8(address, add_cycles);
+    }
+    return m_registers.get_u8(reg);
+}
+
+void Cpu::write_data_u8(const Register reg, u8 value, const bool add_cycles) {
+    if (is_16bit(reg)) {
+        const auto address = m_registers.get_u16(reg);
+        m_emulator.m_bus.write_u8(address, value, add_cycles);
+        return;
+    }
+    return m_registers.set_u8(reg, value);
+}
+
 void Cpu::stack_push8(const u8 value) { m_emulator.m_bus.write_u8(--m_registers.sp, value); }
 
 u8 Cpu::stack_pop8() { return m_emulator.m_bus.read_u8(m_registers.sp++); }
@@ -179,6 +196,12 @@ void Cpu::execute_next_instruction() {
             m_int_master_enabled = false;
             return;
         }
+
+        case 0xCB: {
+            execute_cb(prefix);
+            return;
+        }
+
         default:
             if (execute_ld(prefix, opcode) || execute_xor(prefix, opcode) || execute_cp(prefix, opcode) ||
                 execute_and(prefix, opcode) || execute_sub(prefix, opcode) || execute_jp(prefix, opcode) ||
