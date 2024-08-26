@@ -42,7 +42,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (address == 0xFFFF) {
         return m_emulator.m_cpu.m_ie_register;
     }
-    throw std::runtime_error(fmt::format("Unsupported memory address {:04x}", address));
+
+    static u8 val = 0x00; /// FIXME
+    return val++;
+    // throw std::runtime_error(fmt::format("Unsupported memory address {:04x}", address));
 }
 
 void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
@@ -63,7 +66,7 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
         m_emulator.m_cpu.m_ie_register = value;
         return;
     }
-    throw std::runtime_error(fmt::format("Unsupported memory address {:04x}", address));
+    // throw std::runtime_error(fmt::format("Unsupported memory address {:04x}", address));
 }
 
 u16 Bus::read_u16(const u16 address, const bool add_cycles) const {

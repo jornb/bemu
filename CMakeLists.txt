@@ -9,6 +9,7 @@ add_executable(bemugb
         src/gb/emulator.cpp
         src/gb/io.cpp
         src/gb/main.cpp
+        src/gb/timer.cpp
 )
 
 target_link_libraries(bemugb PRIVATE spdlog::spdlog magic_enum::magic_enum)

@@ -22,8 +22,17 @@ struct Lcd {
     u8 m_status;
     u8 scroll_y;
     u8 scroll_x;
+
+    /// FF44 - LY: LCD Y coordinate [read-only]
+    /// LY indicates the current horizontal line, which might be about to be drawn, being drawn, or just been drawn. LY
+    /// can hold any value from 0 to 153, with values from 144 to 153 indicating the VBlank period.
     u8 ly;
+
+    /// FF45 - LYC: LY compare
+    /// The Game Boy constantly compares the value of the LYC and LY registers. When both values are identical, the
+    /// “LYC=LY” flag in the STAT register is set, and (if enabled) a STAT interrupt is requested.
     u8 ly_compare;
+
     u8 dma;
     u8 bg_palette;
     u8 obj_palette[2];
