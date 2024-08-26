@@ -43,7 +43,7 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         return m_emulator.m_cpu.m_ie_register;
     }
 
-    static u8 val = 0x00; /// FIXME
+    static u8 val = 0x00;  /// FIXME
     return val++;
     // throw std::runtime_error(fmt::format("Unsupported memory address {:04x}", address));
 }

@@ -18,99 +18,99 @@ void CpuRegisters::set_n(const bool n) { set_bit(f, 6, n); }
 void CpuRegisters::set_h(const bool h) { set_bit(f, 5, h); }
 void CpuRegisters::set_c(const bool c) { set_bit(f, 4, c); }
 
-bool CpuRegisters::check_flags(const FlagConditionType condition) const {
+bool CpuRegisters::check_flags(const Condition condition) const {
     switch (condition) {
-        case FlagConditionType::Z: return get_z();
-        case FlagConditionType::NZ: return !get_z();
-        case FlagConditionType::C: return get_c();
-        case FlagConditionType::NC: return !get_c();
+        case Z: return get_z();
+        case NZ: return !get_z();
+        case C: return get_c();
+        case NC: return !get_c();
         default: return true;
     }
 }
 
-u8 CpuRegisters::get_u8(const RegisterType type) const {
+u8 CpuRegisters::get_u8(const Register type) const {
     if (is_16bit(type)) {
         throw std::runtime_error(fmt::format("Tried to get CPU register {} as 8 bit", magic_enum::enum_name(type)));
     }
 
     switch (type) {
-        case RegisterType::A: return a;
-        case RegisterType::F: return f;
-        case RegisterType::B: return b;
-        case RegisterType::C: return c;
-        case RegisterType::D: return d;
-        case RegisterType::E: return e;
-        case RegisterType::H: return h;
-        case RegisterType::L: return l;
+        case Register::A: return a;
+        case Register::F: return f;
+        case Register::B: return b;
+        case Register::C: return c;
+        case Register::D: return d;
+        case Register::E: return e;
+        case Register::H: return h;
+        case Register::L: return l;
         default: throw std::runtime_error(fmt::format("Unknown CPU register {}", magic_enum::enum_name(type)));
     }
 }
 
-void CpuRegisters::set_u8(const RegisterType type, const u8 value) {
+void CpuRegisters::set_u8(const Register type, const u8 value) {
     if (is_16bit(type)) {
         throw std::runtime_error(fmt::format("Tried to set CPU register {} as 8 bit", magic_enum::enum_name(type)));
     }
 
     switch (type) {
-        case RegisterType::A: a = value; break;
-        case RegisterType::F: f = value; break;
-        case RegisterType::B: b = value; break;
-        case RegisterType::C: c = value; break;
-        case RegisterType::D: d = value; break;
-        case RegisterType::E: e = value; break;
-        case RegisterType::H: h = value; break;
-        case RegisterType::L: l = value; break;
+        case Register::A: a = value; break;
+        case Register::F: f = value; break;
+        case Register::B: b = value; break;
+        case Register::C: c = value; break;
+        case Register::D: d = value; break;
+        case Register::E: e = value; break;
+        case Register::H: h = value; break;
+        case Register::L: l = value; break;
         default: throw std::runtime_error(fmt::format("Unknown CPU register {}", magic_enum::enum_name(type)));
     }
 }
 
-u16 CpuRegisters::get_u16(RegisterType type) const {
+u16 CpuRegisters::get_u16(Register type) const {
     if (!is_16bit(type)) {
         throw std::runtime_error(fmt::format("Tried to get CPU register {} as 16 bit", magic_enum::enum_name(type)));
     }
     switch (type) {
-        case RegisterType::AF: return combine_bytes(a, f);
-        case RegisterType::BC: return combine_bytes(b, c);
-        case RegisterType::DE: return combine_bytes(d, e);
-        case RegisterType::HL: return combine_bytes(h, l);
-        case RegisterType::PC: return pc;
-        case RegisterType::SP: return sp;
+        case Register::AF: return combine_bytes(a, f);
+        case Register::BC: return combine_bytes(b, c);
+        case Register::DE: return combine_bytes(d, e);
+        case Register::HL: return combine_bytes(h, l);
+        case Register::PC: return pc;
+        case Register::SP: return sp;
         default: throw std::runtime_error(fmt::format("Unknown CPU register {}", magic_enum::enum_name(type)));
     }
 }
 
-void CpuRegisters::set_u16(const RegisterType type, const u16 value) {
+void CpuRegisters::set_u16(const Register type, const u16 value) {
     if (!is_16bit(type)) {
         throw std::runtime_error(fmt::format("Tried to get CPU register {} as 16 bit", magic_enum::enum_name(type)));
     }
     auto [hi, lo] = split_bytes(value);
 
     switch (type) {
-        case RegisterType::AF: {
+        case Register::AF: {
             a = hi;
             f = lo;
             break;
         }
-        case RegisterType::BC: {
+        case Register::BC: {
             b = hi;
             c = lo;
             break;
         }
-        case RegisterType::DE: {
+        case Register::DE: {
             d = hi;
             e = lo;
             break;
         }
-        case RegisterType::HL: {
+        case Register::HL: {
             h = hi;
             l = lo;
             break;
         }
-        case RegisterType::PC: {
+        case Register::PC: {
             pc = value;
             break;
         }
-        case RegisterType::SP: sp = value; break;
+        case Register::SP: sp = value; break;
 
         default: throw std::runtime_error(fmt::format("Unknown CPU register {}", magic_enum::enum_name(type)));
     }
@@ -191,76 +191,76 @@ void Cpu::execute_next_instruction() {
 bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
     switch (opcode) {
         // LD R, d8
-        case 0x06: return execute_ld_d(debug_prefix, RegisterType::B);
-        case 0x0E: return execute_ld_d(debug_prefix, RegisterType::C);
-        case 0x16: return execute_ld_d(debug_prefix, RegisterType::D);
-        case 0x1E: return execute_ld_d(debug_prefix, RegisterType::E);
-        case 0x26: return execute_ld_d(debug_prefix, RegisterType::H);
-        case 0x2E: return execute_ld_d(debug_prefix, RegisterType::L);
-        case 0x3E: return execute_ld_d(debug_prefix, RegisterType::A);
+        case 0x06: return execute_ld_d(debug_prefix, Register::B);
+        case 0x0E: return execute_ld_d(debug_prefix, Register::C);
+        case 0x16: return execute_ld_d(debug_prefix, Register::D);
+        case 0x1E: return execute_ld_d(debug_prefix, Register::E);
+        case 0x26: return execute_ld_d(debug_prefix, Register::H);
+        case 0x2E: return execute_ld_d(debug_prefix, Register::L);
+        case 0x3E: return execute_ld_d(debug_prefix, Register::A);
 
         // LD R, d16
-        case 0x01: return execute_ld_d(debug_prefix, RegisterType::BC);
-        case 0x11: return execute_ld_d(debug_prefix, RegisterType::DE);
-        case 0x21: return execute_ld_d(debug_prefix, RegisterType::HL);
-        case 0x31: return execute_ld_d(debug_prefix, RegisterType::SP);
+        case 0x01: return execute_ld_d(debug_prefix, Register::BC);
+        case 0x11: return execute_ld_d(debug_prefix, Register::DE);
+        case 0x21: return execute_ld_d(debug_prefix, Register::HL);
+        case 0x31: return execute_ld_d(debug_prefix, Register::SP);
 
         // LD R, R
-        case 0x40: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::B);
-        case 0x41: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::C);
-        case 0x42: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::D);
-        case 0x43: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::E);
-        case 0x44: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::H);
-        case 0x45: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::L);
-        case 0x47: return execute_ld_r8_r8(debug_prefix, RegisterType::B, RegisterType::A);
+        case 0x40: return execute_ld_r8_r8(debug_prefix, Register::B, Register::B);
+        case 0x41: return execute_ld_r8_r8(debug_prefix, Register::B, Register::C);
+        case 0x42: return execute_ld_r8_r8(debug_prefix, Register::B, Register::D);
+        case 0x43: return execute_ld_r8_r8(debug_prefix, Register::B, Register::E);
+        case 0x44: return execute_ld_r8_r8(debug_prefix, Register::B, Register::H);
+        case 0x45: return execute_ld_r8_r8(debug_prefix, Register::B, Register::L);
+        case 0x47: return execute_ld_r8_r8(debug_prefix, Register::B, Register::A);
 
-        case 0x48: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::B);
-        case 0x49: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::C);
-        case 0x4A: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::D);
-        case 0x4B: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::E);
-        case 0x4C: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::H);
-        case 0x4D: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::L);
-        case 0x4F: return execute_ld_r8_r8(debug_prefix, RegisterType::C, RegisterType::A);
+        case 0x48: return execute_ld_r8_r8(debug_prefix, Register::C, Register::B);
+        case 0x49: return execute_ld_r8_r8(debug_prefix, Register::C, Register::C);
+        case 0x4A: return execute_ld_r8_r8(debug_prefix, Register::C, Register::D);
+        case 0x4B: return execute_ld_r8_r8(debug_prefix, Register::C, Register::E);
+        case 0x4C: return execute_ld_r8_r8(debug_prefix, Register::C, Register::H);
+        case 0x4D: return execute_ld_r8_r8(debug_prefix, Register::C, Register::L);
+        case 0x4F: return execute_ld_r8_r8(debug_prefix, Register::C, Register::A);
 
-        case 0x50: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::B);
-        case 0x51: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::C);
-        case 0x52: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::D);
-        case 0x53: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::E);
-        case 0x54: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::H);
-        case 0x55: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::L);
-        case 0x57: return execute_ld_r8_r8(debug_prefix, RegisterType::D, RegisterType::A);
+        case 0x50: return execute_ld_r8_r8(debug_prefix, Register::D, Register::B);
+        case 0x51: return execute_ld_r8_r8(debug_prefix, Register::D, Register::C);
+        case 0x52: return execute_ld_r8_r8(debug_prefix, Register::D, Register::D);
+        case 0x53: return execute_ld_r8_r8(debug_prefix, Register::D, Register::E);
+        case 0x54: return execute_ld_r8_r8(debug_prefix, Register::D, Register::H);
+        case 0x55: return execute_ld_r8_r8(debug_prefix, Register::D, Register::L);
+        case 0x57: return execute_ld_r8_r8(debug_prefix, Register::D, Register::A);
 
-        case 0x58: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::B);
-        case 0x59: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::C);
-        case 0x5A: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::D);
-        case 0x5B: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::E);
-        case 0x5C: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::H);
-        case 0x5D: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::L);
-        case 0x5F: return execute_ld_r8_r8(debug_prefix, RegisterType::E, RegisterType::A);
+        case 0x58: return execute_ld_r8_r8(debug_prefix, Register::E, Register::B);
+        case 0x59: return execute_ld_r8_r8(debug_prefix, Register::E, Register::C);
+        case 0x5A: return execute_ld_r8_r8(debug_prefix, Register::E, Register::D);
+        case 0x5B: return execute_ld_r8_r8(debug_prefix, Register::E, Register::E);
+        case 0x5C: return execute_ld_r8_r8(debug_prefix, Register::E, Register::H);
+        case 0x5D: return execute_ld_r8_r8(debug_prefix, Register::E, Register::L);
+        case 0x5F: return execute_ld_r8_r8(debug_prefix, Register::E, Register::A);
 
-        case 0x60: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::B);
-        case 0x61: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::C);
-        case 0x62: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::D);
-        case 0x63: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::E);
-        case 0x64: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::H);
-        case 0x65: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::L);
-        case 0x67: return execute_ld_r8_r8(debug_prefix, RegisterType::H, RegisterType::A);
+        case 0x60: return execute_ld_r8_r8(debug_prefix, Register::H, Register::B);
+        case 0x61: return execute_ld_r8_r8(debug_prefix, Register::H, Register::C);
+        case 0x62: return execute_ld_r8_r8(debug_prefix, Register::H, Register::D);
+        case 0x63: return execute_ld_r8_r8(debug_prefix, Register::H, Register::E);
+        case 0x64: return execute_ld_r8_r8(debug_prefix, Register::H, Register::H);
+        case 0x65: return execute_ld_r8_r8(debug_prefix, Register::H, Register::L);
+        case 0x67: return execute_ld_r8_r8(debug_prefix, Register::H, Register::A);
 
-        case 0x68: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::B);
-        case 0x69: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::C);
-        case 0x6A: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::D);
-        case 0x6B: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::E);
-        case 0x6C: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::H);
-        case 0x6D: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::L);
-        case 0x6F: return execute_ld_r8_r8(debug_prefix, RegisterType::L, RegisterType::A);
+        case 0x68: return execute_ld_r8_r8(debug_prefix, Register::L, Register::B);
+        case 0x69: return execute_ld_r8_r8(debug_prefix, Register::L, Register::C);
+        case 0x6A: return execute_ld_r8_r8(debug_prefix, Register::L, Register::D);
+        case 0x6B: return execute_ld_r8_r8(debug_prefix, Register::L, Register::E);
+        case 0x6C: return execute_ld_r8_r8(debug_prefix, Register::L, Register::H);
+        case 0x6D: return execute_ld_r8_r8(debug_prefix, Register::L, Register::L);
+        case 0x6F: return execute_ld_r8_r8(debug_prefix, Register::L, Register::A);
 
-        case 0x78: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::B);
-        case 0x79: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::C);
-        case 0x7A: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::D);
-        case 0x7B: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::E);
-        case 0x7C: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::H);
-        case 0x7D: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::L);
-        case 0x7F: return execute_ld_r8_r8(debug_prefix, RegisterType::A, RegisterType::A);
+        case 0x78: return execute_ld_r8_r8(debug_prefix, Register::A, Register::B);
+        case 0x79: return execute_ld_r8_r8(debug_prefix, Register::A, Register::C);
+        case 0x7A: return execute_ld_r8_r8(debug_prefix, Register::A, Register::D);
+        case 0x7B: return execute_ld_r8_r8(debug_prefix, Register::A, Register::E);
+        case 0x7C: return execute_ld_r8_r8(debug_prefix, Register::A, Register::H);
+        case 0x7D: return execute_ld_r8_r8(debug_prefix, Register::A, Register::L);
+        case 0x7F: return execute_ld_r8_r8(debug_prefix, Register::A, Register::A);
 
         // LD (HL+), A
         case 0x22: {
@@ -294,14 +294,14 @@ bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
             const auto a8 = fetch_u8();
             const auto address = 0xFF00 + a8;
             spdlog::info(fmt::format("{} LDH ({:02x}), A = LD ({:04x}), A", debug_prefix, a8, address));
-            execute_ld(address, RegisterType::A);
+            execute_ld(address, Register::A);
             return true;
         }
 
         case 0xEA: {  // LD (a16),A
             const auto address = fetch_u16();
             spdlog::info(fmt::format("{} LDH ({:04x}), A", debug_prefix, address));
-            execute_ld(address, RegisterType::A);
+            execute_ld(address, Register::A);
             return true;
         }
 
@@ -309,14 +309,14 @@ bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
             const auto a8 = fetch_u8();
             const auto address = 0xFF00 + a8;
             spdlog::info(fmt::format("{} LDH A, ({:02x}) = LD A, ({:04x})", debug_prefix, a8, address));
-            execute_ld(RegisterType::A, address);
+            execute_ld(Register::A, address);
             return true;
         }
 
         case 0xFA: {  // LD A,(a16)
             const auto address = fetch_u16();
             spdlog::info(fmt::format("{} LD A, ({:04x})", debug_prefix, address));
-            execute_ld(RegisterType::A, address);
+            execute_ld(Register::A, address);
             return true;
         }
 
@@ -324,7 +324,7 @@ bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
     }
 }
 
-bool Cpu::execute_ld_d(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_ld_d(const std::string &debug_prefix, const Register reg) {
     if (is_16bit(reg)) {
         const auto d16 = fetch_u16();
         spdlog::info(fmt::format("{} LD {}, {:04x}", debug_prefix, magic_enum::enum_name(reg), d16));
@@ -339,7 +339,7 @@ bool Cpu::execute_ld_d(const std::string &debug_prefix, const RegisterType reg) 
     return true;
 }
 
-void Cpu::execute_ld(const u16 address, const RegisterType reg) {
+void Cpu::execute_ld(const u16 address, const Register reg) {
     if (is_16bit(reg)) {
         m_emulator.m_bus.write_u16(address, m_registers.get_u16(reg));
     } else {
@@ -347,7 +347,7 @@ void Cpu::execute_ld(const u16 address, const RegisterType reg) {
     }
 }
 
-void Cpu::execute_ld(const RegisterType reg, const u16 address) {
+void Cpu::execute_ld(const Register reg, const u16 address) {
     if (is_16bit(reg)) {
         const auto data = m_emulator.m_bus.read_u16(address);
         m_registers.set_u16(reg, data);
@@ -357,7 +357,7 @@ void Cpu::execute_ld(const RegisterType reg, const u16 address) {
     }
 }
 
-bool Cpu::execute_ld_r8_r8(const std::string &debug_prefix, const RegisterType reg1, const RegisterType reg2) {
+bool Cpu::execute_ld_r8_r8(const std::string &debug_prefix, const Register reg1, const Register reg2) {
     spdlog::info(fmt::format("{} LD {}, {}", debug_prefix, magic_enum::enum_name(reg1), magic_enum::enum_name(reg2)));
     m_registers.set_u8(reg1, m_registers.get_u8(reg2));
     return true;
@@ -366,19 +366,19 @@ bool Cpu::execute_ld_r8_r8(const std::string &debug_prefix, const RegisterType r
 bool Cpu::execute_inc(const std::string &debug_prefix, u8 opcode) {
     switch (opcode) {
         // INC R
-        case 0x04: return execute_inc_r8(debug_prefix, RegisterType::B);
-        case 0x14: return execute_inc_r8(debug_prefix, RegisterType::C);
-        case 0x24: return execute_inc_r8(debug_prefix, RegisterType::H);
-        case 0x0C: return execute_inc_r8(debug_prefix, RegisterType::C);
-        case 0x1C: return execute_inc_r8(debug_prefix, RegisterType::E);
-        case 0x2C: return execute_inc_r8(debug_prefix, RegisterType::L);
-        case 0x3C: return execute_inc_r8(debug_prefix, RegisterType::A);
+        case 0x04: return execute_inc_r8(debug_prefix, Register::B);
+        case 0x14: return execute_inc_r8(debug_prefix, Register::C);
+        case 0x24: return execute_inc_r8(debug_prefix, Register::H);
+        case 0x0C: return execute_inc_r8(debug_prefix, Register::C);
+        case 0x1C: return execute_inc_r8(debug_prefix, Register::E);
+        case 0x2C: return execute_inc_r8(debug_prefix, Register::L);
+        case 0x3C: return execute_inc_r8(debug_prefix, Register::A);
 
         // INC RR
-        case 0x03: return execute_inc_r8(debug_prefix, RegisterType::BC);
-        case 0x13: return execute_inc_r8(debug_prefix, RegisterType::DE);
-        case 0x23: return execute_inc_r8(debug_prefix, RegisterType::HL);
-        case 0x33: return execute_inc_r8(debug_prefix, RegisterType::SP);
+        case 0x03: return execute_inc_r8(debug_prefix, Register::BC);
+        case 0x13: return execute_inc_r8(debug_prefix, Register::DE);
+        case 0x23: return execute_inc_r8(debug_prefix, Register::HL);
+        case 0x33: return execute_inc_r8(debug_prefix, Register::SP);
 
         // INC [HL]
         case 0x34: throw std::runtime_error("INC (HL)");
@@ -387,7 +387,7 @@ bool Cpu::execute_inc(const std::string &debug_prefix, u8 opcode) {
     }
 }
 
-bool Cpu::execute_inc_r8(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_inc_r8(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
 
     const u8 old_value = m_registers.get_u8(reg);
@@ -401,7 +401,7 @@ bool Cpu::execute_inc_r8(const std::string &debug_prefix, const RegisterType reg
     return true;
 }
 
-bool Cpu::execute_inc_r16(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_inc_r16(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
 
     const u16 old_value = m_registers.get_u16(reg);
@@ -417,19 +417,19 @@ bool Cpu::execute_inc_r16(const std::string &debug_prefix, const RegisterType re
 bool Cpu::execute_dec(const std::string &debug_prefix, u8 opcode) {
     switch (opcode) {
         // INC R
-        case 0x05: return execute_dec_r8(debug_prefix, RegisterType::B);
-        case 0x15: return execute_dec_r8(debug_prefix, RegisterType::C);
-        case 0x25: return execute_dec_r8(debug_prefix, RegisterType::H);
-        case 0x0D: return execute_dec_r8(debug_prefix, RegisterType::C);
-        case 0x1D: return execute_dec_r8(debug_prefix, RegisterType::E);
-        case 0x2D: return execute_dec_r8(debug_prefix, RegisterType::L);
-        case 0x3D: return execute_dec_r8(debug_prefix, RegisterType::A);
+        case 0x05: return execute_dec_r8(debug_prefix, Register::B);
+        case 0x15: return execute_dec_r8(debug_prefix, Register::C);
+        case 0x25: return execute_dec_r8(debug_prefix, Register::H);
+        case 0x0D: return execute_dec_r8(debug_prefix, Register::C);
+        case 0x1D: return execute_dec_r8(debug_prefix, Register::E);
+        case 0x2D: return execute_dec_r8(debug_prefix, Register::L);
+        case 0x3D: return execute_dec_r8(debug_prefix, Register::A);
 
         // INC RR
-        case 0x0B: return execute_dec_r8(debug_prefix, RegisterType::BC);
-        case 0x1B: return execute_dec_r8(debug_prefix, RegisterType::DE);
-        case 0x2B: return execute_dec_r8(debug_prefix, RegisterType::HL);
-        case 0x3B: return execute_dec_r8(debug_prefix, RegisterType::SP);
+        case 0x0B: return execute_dec_r8(debug_prefix, Register::BC);
+        case 0x1B: return execute_dec_r8(debug_prefix, Register::DE);
+        case 0x2B: return execute_dec_r8(debug_prefix, Register::HL);
+        case 0x3B: return execute_dec_r8(debug_prefix, Register::SP);
 
         // INC [HL]
         case 0x35: throw std::runtime_error("DEC (HL)");
@@ -438,7 +438,7 @@ bool Cpu::execute_dec(const std::string &debug_prefix, u8 opcode) {
     }
 }
 
-bool Cpu::execute_dec_r8(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_dec_r8(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
 
     const u8 old_value = m_registers.get_u8(reg);
@@ -452,7 +452,7 @@ bool Cpu::execute_dec_r8(const std::string &debug_prefix, const RegisterType reg
     return true;
 }
 
-bool Cpu::execute_dec_r16(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_dec_r16(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
 
     const u16 old_value = m_registers.get_u16(reg);
@@ -467,18 +467,18 @@ bool Cpu::execute_dec_r16(const std::string &debug_prefix, const RegisterType re
 
 bool Cpu::execute_xor(const std::string &debug_prefix, u8 opcode) {
     switch (opcode) {
-        case 0xA8: execute_xor_reg(debug_prefix, RegisterType::B); return true;
-        case 0xA9: execute_xor_reg(debug_prefix, RegisterType::C); return true;
-        case 0xAA: execute_xor_reg(debug_prefix, RegisterType::D); return true;
-        case 0xAB: execute_xor_reg(debug_prefix, RegisterType::E); return true;
-        case 0xAC: execute_xor_reg(debug_prefix, RegisterType::H); return true;
-        case 0xAD: execute_xor_reg(debug_prefix, RegisterType::L); return true;
-        case 0xAF: execute_xor_reg(debug_prefix, RegisterType::A); return true;
+        case 0xA8: execute_xor_reg(debug_prefix, Register::B); return true;
+        case 0xA9: execute_xor_reg(debug_prefix, Register::C); return true;
+        case 0xAA: execute_xor_reg(debug_prefix, Register::D); return true;
+        case 0xAB: execute_xor_reg(debug_prefix, Register::E); return true;
+        case 0xAC: execute_xor_reg(debug_prefix, Register::H); return true;
+        case 0xAD: execute_xor_reg(debug_prefix, Register::L); return true;
+        case 0xAF: execute_xor_reg(debug_prefix, Register::A); return true;
         default: return false;
     }
 }
 
-void Cpu::execute_xor_reg(const std::string &debug_prefix, const RegisterType input_reg) {
+void Cpu::execute_xor_reg(const std::string &debug_prefix, const Register input_reg) {
     spdlog::info(fmt::format("{} XOR {}", debug_prefix, magic_enum::enum_name(input_reg)));
 
     const auto data = m_registers.get_u8(input_reg);
@@ -488,7 +488,7 @@ void Cpu::execute_xor_reg(const std::string &debug_prefix, const RegisterType in
 
 bool Cpu::execute_cp(const std::string &debug_prefix, u8 opcode) {
     switch (opcode) {
-        case 0xFE: execute_cp(debug_prefix, RegisterType::B); return true;
+        case 0xFE: execute_cp(debug_prefix, Register::B); return true;
     }
 
     return false;
@@ -506,7 +506,7 @@ bool Cpu::execute_cp(const std::string &debug_prefix, u8 opcode) {
 //     flags.N = 1
 //     flags.H = 1 if carry_per_bit[3] else 0
 //     flags.C = 1 if carry_per_bit[7] else 0
-void Cpu::execute_cp(const std::string &debug_prefix, const RegisterType reg) {
+void Cpu::execute_cp(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} CP {}", debug_prefix, magic_enum::enum_name(reg)));
 
     const auto a = static_cast<int>(m_registers.a);
@@ -522,24 +522,24 @@ void Cpu::execute_cp(const std::string &debug_prefix, const RegisterType reg) {
 
 bool Cpu::execute_and(const std::string &debug_prefix, const u8 opcode) {
     switch (opcode) {
-        case 0xA0: return execute_and(debug_prefix, RegisterType::B);
-        case 0xA1: return execute_and(debug_prefix, RegisterType::C);
-        case 0xA2: return execute_and(debug_prefix, RegisterType::D);
-        case 0xA3: return execute_and(debug_prefix, RegisterType::E);
-        case 0xA4: return execute_and(debug_prefix, RegisterType::H);
-        case 0xA5: return execute_and(debug_prefix, RegisterType::L);
-        case 0xA6: return execute_and(debug_prefix, RegisterType::HL);
-        case 0xA7: return execute_and(debug_prefix, RegisterType::A);
+        case 0xA0: return execute_and(debug_prefix, Register::B);
+        case 0xA1: return execute_and(debug_prefix, Register::C);
+        case 0xA2: return execute_and(debug_prefix, Register::D);
+        case 0xA3: return execute_and(debug_prefix, Register::E);
+        case 0xA4: return execute_and(debug_prefix, Register::H);
+        case 0xA5: return execute_and(debug_prefix, Register::L);
+        case 0xA6: return execute_and(debug_prefix, Register::HL);
+        case 0xA7: return execute_and(debug_prefix, Register::A);
         default: return false;
     }
 }
 
 // Performs a bitwise AND operation between the 8-bit A register and the 8-bit register r, and stores the result back
 // into the A register.
-bool Cpu::execute_and(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_and(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} AND A, {}", debug_prefix, magic_enum::enum_name(reg)));
 
-    if (reg == RegisterType::HL) {
+    if (reg == Register::HL) {
         throw std::runtime_error("TODO: AND A, HL");
     }
 
@@ -558,23 +558,23 @@ bool Cpu::execute_and(const std::string &debug_prefix, const RegisterType reg) {
 
 bool Cpu::execute_sub(const std::string &debug_prefix, const u8 opcode) {
     switch (opcode) {
-        case 0x90: return execute_sub(debug_prefix, RegisterType::B);
-        case 0x91: return execute_sub(debug_prefix, RegisterType::C);
-        case 0x92: return execute_sub(debug_prefix, RegisterType::D);
-        case 0x93: return execute_sub(debug_prefix, RegisterType::E);
-        case 0x94: return execute_sub(debug_prefix, RegisterType::H);
-        case 0x95: return execute_sub(debug_prefix, RegisterType::L);
-        case 0x96: return execute_sub(debug_prefix, RegisterType::HL);
-        case 0x97: return execute_sub(debug_prefix, RegisterType::A);
+        case 0x90: return execute_sub(debug_prefix, Register::B);
+        case 0x91: return execute_sub(debug_prefix, Register::C);
+        case 0x92: return execute_sub(debug_prefix, Register::D);
+        case 0x93: return execute_sub(debug_prefix, Register::E);
+        case 0x94: return execute_sub(debug_prefix, Register::H);
+        case 0x95: return execute_sub(debug_prefix, Register::L);
+        case 0x96: return execute_sub(debug_prefix, Register::HL);
+        case 0x97: return execute_sub(debug_prefix, Register::A);
         default: return false;
     }
 }
 
 // Subtracts from the 8-bit A register, the 8-bit register r, and stores the result back into the A register
-bool Cpu::execute_sub(const std::string &debug_prefix, const RegisterType reg) {
+bool Cpu::execute_sub(const std::string &debug_prefix, const Register reg) {
     spdlog::info(fmt::format("{} SUB A, {}", debug_prefix, magic_enum::enum_name(reg)));
 
-    if (reg == RegisterType::HL) {
+    if (reg == Register::HL) {
         throw std::runtime_error("TODO: SUB A, HL");
     }
     const auto a = static_cast<int>(m_registers.a);
@@ -609,14 +609,14 @@ bool Cpu::execute_jp(const std::string &debug_prefix, const u8 opcode) {
 
         case 0xE9: {
             spdlog::info(fmt::format("{} JP HL", debug_prefix));
-            return execute_jp(None, m_registers.get_u16(RegisterType::HL));
+            return execute_jp(None, m_registers.get_u16(Register::HL));
         }
 
         default: return false;
     }
 }
 
-bool Cpu::execute_jp_a16(const std::string &debug_prefix, const FlagConditionType condition) {
+bool Cpu::execute_jp_a16(const std::string &debug_prefix, const Condition condition) {
     const auto address = fetch_u16();
     if (condition == None) {
         spdlog::info(fmt::format("{} JP {:04x}", debug_prefix, address));
@@ -627,7 +627,7 @@ bool Cpu::execute_jp_a16(const std::string &debug_prefix, const FlagConditionTyp
     return execute_jp(condition, address);
 }
 
-bool Cpu::execute_jr_e8(const std::string &debug_prefix, const FlagConditionType condition) {
+bool Cpu::execute_jr_e8(const std::string &debug_prefix, const Condition condition) {
     const auto rel = static_cast<s8>(fetch_u8());
     const auto address = m_registers.pc + rel;
     if (condition == None) {
@@ -640,7 +640,7 @@ bool Cpu::execute_jr_e8(const std::string &debug_prefix, const FlagConditionType
     return execute_jp(condition, address);
 }
 
-bool Cpu::execute_jp(const FlagConditionType condition, const u16 address) {
+bool Cpu::execute_jp(const Condition condition, const u16 address) {
     if (m_registers.check_flags(condition)) {
         m_registers.pc = address;
         m_emulator.add_cycles();
@@ -660,7 +660,7 @@ bool Cpu::execute_call(const std::string &debug_prefix, const u8 opcode) {
     }
 }
 
-bool Cpu::execute_call(const std::string &debug_prefix, const FlagConditionType condition) {
+bool Cpu::execute_call(const std::string &debug_prefix, const Condition condition) {
     const auto address = fetch_u16();
     if (condition == None) {
         spdlog::info(fmt::format("{} CALL {:04x}", debug_prefix, address));

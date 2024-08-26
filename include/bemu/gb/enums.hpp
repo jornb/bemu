@@ -3,10 +3,6 @@
 #include "types.hpp"
 
 namespace bemu::gb {
-/// CPU regsiter type
-enum class RegisterType : u8 { None, A, F, B, C, D, E, H, L, AF, BC, DE, HL, SP, PC };
-
-constexpr bool is_16bit(const RegisterType reg) { return reg >= RegisterType::AF; }
 
 // enum class OpcodeArgumentType {
 //     None,
