@@ -1,13 +1,144 @@
 #include <spdlog/fmt/fmt.h>
 #include <spdlog/spdlog.h>
 
+#include <array>
 #include <bemu/gb/cpu.hpp>
 #include <bemu/gb/emulator.hpp>
 #include <bemu/gb/utils.hpp>
 #include <magic_enum.hpp>
+#include <source_location>
 #include <stdexcept>
 
 using namespace bemu::gb;
+
+namespace {
+struct UnexpectedError : std::exception {
+    explicit UnexpectedError(const std::string &reason = "",
+                             const std::source_location sl = std::source_location::current()) {
+        m_what = fmt::format("Unexpected opcode error in {}: {}", sl.function_name(), reason);
+    }
+
+    [[nodiscard]] const char *what() const noexcept override { return m_what.c_str(); }
+
+   private:
+    std::string m_what;
+};
+
+struct NotImplementedError : std::exception {
+    explicit NotImplementedError(const std::string &reason = "",
+                                 const std::source_location sl = std::source_location::current()) {
+        m_what = fmt::format("Implementation error in {}: {}", sl.function_name(), reason);
+    }
+
+    [[nodiscard]] const char *what() const noexcept override { return m_what.c_str(); }
+
+   private:
+    std::string m_what;
+};
+
+bool is_address(const OperandType t) {
+    switch (t) {
+        case OperandType::Address8:
+        case OperandType::Address16:
+        case OperandType::RelativeAddress8pc:
+        case OperandType::RelativeAddress8sp:
+        case OperandType::HLI:
+        case OperandType::HLD: return true;
+        default: return false;
+    }
+}
+
+bool is_address(const OperandDescription t) {
+    return is_address(t.m_type) || (t.m_type == OperandType::Register && t.m_register_is_indirect);
+}
+
+// s32 load_argument(Cpu &cpu, const OperandDescription &op) {
+//     switch (op.m_type) {
+//         case OperandType::Data8u: return cpu.fetch_u8();
+//         case OperandType::Data8s: return static_cast<s8>(cpu.fetch_u8());
+//         case OperandType::Address8: return 0xFF + cpu.fetch_u8();
+//         case OperandType::Address16: return cpu.fetch_u16();
+//         case OperandType::RelativeAddress8pc: return cpu.fetch_u8() + cpu.fetch_u8();
+//     }
+// }
+
+// bool is_16_bit(const OperandDescription op) {
+//     return op.m_type == OperandType::Data16 || (op.m_type == OperandType::Register &&
+//     is_16bit(op.m_register.value()));
+// }
+}  // namespace
+
+// /// Commonly used order of registers by last 3 bits
+// /// See https://gbdev.io/gb-opcodes/optables/octal.
+// static std::array g_register_order = {Register::B, Register::C, Register::D,  Register::E,
+//                                       Register::H, Register::L, Register::HL, Register::A};
+
+// namespace {
+// void execute_ld(Cpu &cpu, Register r1, Register r2, PostLoadOperation p1 = PostLoadOperation::Nothing);
+// void execute_ld_n8(Cpu &cpu, Register r1);
+//
+// bool execute_jp(Cpu &cpu, Condition condition, u16 address);
+// bool execute_jp_a16(Cpu &cpu, const std::string &debug_prefix, Condition condition);
+// bool execute_jp_e8(Cpu &cpu, const std::string &debug_prefix, Condition condition);
+//
+// bool execute_jp_a16(Cpu &cpu, const std::string &debug_prefix, const Condition condition) {
+//     const auto address = cpu.fetch_u16();
+//     if (condition == None) {
+//         spdlog::info(fmt::format("{} JP {:04x}", debug_prefix, address));
+//     } else {
+//         spdlog::info(fmt::format("{} JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
+//     }
+//
+//     return execute_jp(cpu, condition, address);
+// }
+//
+// bool execute_jp_e8(Cpu &cpu, const std::string &debug_prefix, const Condition condition) {
+//     const auto rel = static_cast<s8>(cpu.fetch_u8());
+//     const auto address = cpu.m_registers.pc + rel;
+//     if (condition == None) {
+//         spdlog::info(fmt::format("{} JR {} = JP {:04x}", debug_prefix, rel, address));
+//     } else {
+//         spdlog::info(fmt::format("{} JR {}, {} = JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), rel,
+//                                  magic_enum::enum_name(condition), address));
+//     }
+//
+//     return execute_jp(cpu, condition, address);
+// }
+//
+// bool execute_jp(Cpu &cpu, const Condition condition, const u16 address) {
+//     if (cpu.m_registers.check_flags(condition)) {
+//         cpu.m_registers.pc = address;
+//         cpu.m_emulator.add_cycles();
+//     }
+//     return true;
+// }
+//
+// bool execute_jp(Cpu &cpu, const std::string &debug_prefix, const u8 opcode) {
+//     switch (opcode) {
+//         // Absolute
+//         case 0xC2: return execute_jp_a16(cpu, debug_prefix, NZ);
+//         case 0xC3: return execute_jp_a16(cpu, debug_prefix, None);
+//         case 0xCA: return execute_jp_a16(cpu, debug_prefix, Z);
+//         case 0xB2: return execute_jp_a16(cpu, debug_prefix, NC);
+//         case 0xBA: return execute_jp_a16(cpu, debug_prefix, C);
+//
+//         // Relative
+//         case 0x18: return execute_jp_e8(cpu, debug_prefix, None);
+//         case 0x20: return execute_jp_e8(cpu, debug_prefix, NZ);
+//         case 0x28: return execute_jp_e8(cpu, debug_prefix, Z);
+//         case 0x30: return execute_jp_e8(cpu, debug_prefix, NC);
+//         case 0x38: return execute_jp_e8(cpu, debug_prefix, C);
+//
+//         case 0xE9: {
+//             spdlog::info(fmt::format("{} JP HL", debug_prefix));
+//             return execute_jp(cpu, None, cpu.m_registers.get_u16(Register::HL));
+//         }
+//
+//         default: return false;
+//     }
+// }
+
+// }  // namespace
 
 bool CpuRegisters::get_z() const { return get_bit(f, 7); }
 bool CpuRegisters::get_n() const { return get_bit(f, 6); }
@@ -20,10 +151,10 @@ void CpuRegisters::set_c(const bool c) { set_bit(f, 4, c); }
 
 bool CpuRegisters::check_flags(const Condition condition) const {
     switch (condition) {
-        case Z: return get_z();
-        case NZ: return !get_z();
-        case C: return get_c();
-        case NC: return !get_c();
+        case Condition::Z: return get_z();
+        case Condition::NZ: return !get_z();
+        case Condition::C: return get_c();
+        case Condition::NC: return !get_c();
         default: return true;
     }
 }
@@ -116,6 +247,339 @@ void CpuRegisters::set_u16(const Register type, const u16 value) {
     }
 }
 
+OperandDescription indirect(const Register r) { return {r, true}; }
+
+Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
+    // m_instruction_handlers - 0x0X
+    m_instruction_handlers[0x00] = {&execute_noop};
+    m_instruction_handlers[0x01] = {&execute_ld, Register::BC, OperandType::Data16};
+    m_instruction_handlers[0x02] = {&execute_ld, indirect(Register::BC), Register::A};
+    m_instruction_handlers[0x03] = {&execute_inc, Register::BC};
+    m_instruction_handlers[0x04] = {&execute_inc, Register::B};
+    m_instruction_handlers[0x05] = {&execute_dec, Register::B};
+    m_instruction_handlers[0x06] = {&execute_ld, Register::B, OperandType::Data8u};
+    m_instruction_handlers[0x07] = {&execute_rlca};
+    m_instruction_handlers[0x08] = {&execute_ld, OperandType::Address16, Register::SP};
+    m_instruction_handlers[0x09] = {&execute_add, Register::HL, Register::BC};
+    m_instruction_handlers[0x0A] = {&execute_ld, Register::A, indirect(Register::BC)};
+    m_instruction_handlers[0x0B] = {&execute_dec, Register::BC};
+    m_instruction_handlers[0x0C] = {&execute_inc, Register::C};
+    m_instruction_handlers[0x0D] = {&execute_dec, Register::C};
+    m_instruction_handlers[0x0E] = {&execute_ld, Register::C, OperandType::Data8u};
+    m_instruction_handlers[0x0F] = {&execute_rrca};
+
+    // m_instruction_handlers - 0x1X
+    m_instruction_handlers[0x10] = {&execute_stop, OperandType::Data8u};
+    m_instruction_handlers[0x11] = {&execute_ld, Register::DE, OperandType::Data16};
+    m_instruction_handlers[0x12] = {&execute_ld, indirect(Register::DE), Register::A};
+    m_instruction_handlers[0x13] = {&execute_inc, Register::DE};
+    m_instruction_handlers[0x14] = {&execute_inc, Register::D};
+    m_instruction_handlers[0x15] = {&execute_dec, Register::D};
+    m_instruction_handlers[0x16] = {&execute_ld, Register::D, OperandType::Data8u};
+    m_instruction_handlers[0x17] = {&execute_rla};
+    m_instruction_handlers[0x18] = {&execute_jp, OperandType::RelativeAddress8pc};
+    m_instruction_handlers[0x19] = {&execute_add, Register::HL, Register::DE};
+    m_instruction_handlers[0x1A] = {&execute_ld, Register::A, indirect(Register::DE)};
+    m_instruction_handlers[0x1B] = {&execute_dec, Register::DE};
+    m_instruction_handlers[0x1C] = {&execute_inc, Register::E};
+    m_instruction_handlers[0x1D] = {&execute_dec, Register::E};
+    m_instruction_handlers[0x1E] = {&execute_ld, Register::E, OperandType::Data8u};
+    m_instruction_handlers[0x1F] = {&execute_rra};
+
+    // m_instruction_handlers - 0x2X
+    m_instruction_handlers[0x20] = {&execute_jp, OperandType::RelativeAddress8pc, OperandType::None, Condition::NZ};
+    m_instruction_handlers[0x21] = {&execute_ld, Register::HL, OperandType::Data16};
+    m_instruction_handlers[0x22] = {&execute_ld, OperandType::HLI, Register::A};
+    m_instruction_handlers[0x23] = {&execute_inc, Register::HL};
+    m_instruction_handlers[0x24] = {&execute_inc, Register::H};
+    m_instruction_handlers[0x25] = {&execute_dec, Register::H};
+    m_instruction_handlers[0x26] = {&execute_ld, Register::H, OperandType::Data8u};
+    m_instruction_handlers[0x27] = {&execute_daa};
+    m_instruction_handlers[0x28] = {&execute_jp, OperandType::RelativeAddress8pc, OperandType::None, Condition::Z};
+    m_instruction_handlers[0x29] = {&execute_add, Register::HL, Register::HL};
+    m_instruction_handlers[0x2A] = {&execute_ld, Register::A, OperandType::HLI};
+    m_instruction_handlers[0x2B] = {&execute_dec, Register::HL};
+    m_instruction_handlers[0x2C] = {&execute_inc, Register::L};
+    m_instruction_handlers[0x2D] = {&execute_dec, Register::L};
+    m_instruction_handlers[0x2E] = {&execute_ld, Register::L, OperandType::Data8u};
+    m_instruction_handlers[0x2F] = {&execute_cpl};
+
+    // m_instruction_handlers - 0x3X
+    m_instruction_handlers[0x30] = {&execute_jp, OperandType::RelativeAddress8pc, OperandType::None, Condition::NC};
+    m_instruction_handlers[0x31] = {&execute_ld, Register::SP, OperandType::Data16};
+    m_instruction_handlers[0x32] = {&execute_ld, OperandType::HLD, Register::A};
+    m_instruction_handlers[0x33] = {&execute_inc, Register::SP};
+    m_instruction_handlers[0x34] = {&execute_inc, indirect(Register::HL)};
+    m_instruction_handlers[0x35] = {&execute_dec, indirect(Register::HL)};
+    m_instruction_handlers[0x36] = {&execute_ld, indirect(Register::HL), OperandType::Data8u};
+    m_instruction_handlers[0x37] = {&execute_scf};
+    m_instruction_handlers[0x38] = {&execute_jp, OperandType::RelativeAddress8pc, OperandType::None, Condition::C};
+    m_instruction_handlers[0x39] = {&execute_add, Register::HL, Register::SP};
+    m_instruction_handlers[0x3A] = {&execute_ld, Register::A, OperandType::HLD};
+    m_instruction_handlers[0x3B] = {&execute_dec, Register::SP};
+    m_instruction_handlers[0x3C] = {&execute_inc, Register::A};
+    m_instruction_handlers[0x3D] = {&execute_dec, Register::A};
+    m_instruction_handlers[0x3E] = {&execute_ld, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0x3F] = {&execute_ccf};
+
+    // m_instruction_handlers - 0x4X
+    m_instruction_handlers[0x40] = {&execute_ld, Register::B, Register::B};
+    m_instruction_handlers[0x41] = {&execute_ld, Register::B, Register::C};
+    m_instruction_handlers[0x42] = {&execute_ld, Register::B, Register::D};
+    m_instruction_handlers[0x43] = {&execute_ld, Register::B, Register::E};
+    m_instruction_handlers[0x44] = {&execute_ld, Register::B, Register::H};
+    m_instruction_handlers[0x45] = {&execute_ld, Register::B, Register::L};
+    m_instruction_handlers[0x46] = {&execute_ld, Register::B, indirect(Register::HL)};
+    m_instruction_handlers[0x47] = {&execute_ld, Register::B, Register::A};
+    m_instruction_handlers[0x48] = {&execute_ld, Register::C, Register::B};
+    m_instruction_handlers[0x49] = {&execute_ld, Register::C, Register::C};
+    m_instruction_handlers[0x4A] = {&execute_ld, Register::C, Register::D};
+    m_instruction_handlers[0x4B] = {&execute_ld, Register::C, Register::E};
+    m_instruction_handlers[0x4C] = {&execute_ld, Register::C, Register::H};
+    m_instruction_handlers[0x4D] = {&execute_ld, Register::C, Register::L};
+    m_instruction_handlers[0x4E] = {&execute_ld, Register::C, indirect(Register::HL)};
+    m_instruction_handlers[0x4F] = {&execute_ld, Register::C, Register::A};
+
+    // m_instruction_handlers - 0x5X
+    m_instruction_handlers[0x50] = {&execute_ld, Register::D, Register::B};
+    m_instruction_handlers[0x51] = {&execute_ld, Register::D, Register::C};
+    m_instruction_handlers[0x52] = {&execute_ld, Register::D, Register::D};
+    m_instruction_handlers[0x53] = {&execute_ld, Register::D, Register::E};
+    m_instruction_handlers[0x54] = {&execute_ld, Register::D, Register::H};
+    m_instruction_handlers[0x55] = {&execute_ld, Register::D, Register::L};
+    m_instruction_handlers[0x56] = {&execute_ld, Register::D, indirect(Register::HL)};
+    m_instruction_handlers[0x57] = {&execute_ld, Register::D, Register::A};
+    m_instruction_handlers[0x58] = {&execute_ld, Register::E, Register::B};
+    m_instruction_handlers[0x59] = {&execute_ld, Register::E, Register::C};
+    m_instruction_handlers[0x5A] = {&execute_ld, Register::E, Register::D};
+    m_instruction_handlers[0x5B] = {&execute_ld, Register::E, Register::E};
+    m_instruction_handlers[0x5C] = {&execute_ld, Register::E, Register::H};
+    m_instruction_handlers[0x5D] = {&execute_ld, Register::E, Register::L};
+    m_instruction_handlers[0x5E] = {&execute_ld, Register::E, indirect(Register::HL)};
+    m_instruction_handlers[0x5F] = {&execute_ld, Register::E, Register::A};
+
+    // m_instruction_handlers - 0x6X
+    m_instruction_handlers[0x60] = {&execute_ld, Register::H, Register::B};
+    m_instruction_handlers[0x61] = {&execute_ld, Register::H, Register::C};
+    m_instruction_handlers[0x62] = {&execute_ld, Register::H, Register::D};
+    m_instruction_handlers[0x63] = {&execute_ld, Register::H, Register::E};
+    m_instruction_handlers[0x64] = {&execute_ld, Register::H, Register::H};
+    m_instruction_handlers[0x65] = {&execute_ld, Register::H, Register::L};
+    m_instruction_handlers[0x66] = {&execute_ld, Register::H, indirect(Register::HL)};
+    m_instruction_handlers[0x67] = {&execute_ld, Register::H, Register::A};
+    m_instruction_handlers[0x68] = {&execute_ld, Register::L, Register::B};
+    m_instruction_handlers[0x69] = {&execute_ld, Register::L, Register::C};
+    m_instruction_handlers[0x6A] = {&execute_ld, Register::L, Register::D};
+    m_instruction_handlers[0x6B] = {&execute_ld, Register::L, Register::E};
+    m_instruction_handlers[0x6C] = {&execute_ld, Register::L, Register::H};
+    m_instruction_handlers[0x6D] = {&execute_ld, Register::L, Register::L};
+    m_instruction_handlers[0x6E] = {&execute_ld, Register::L, indirect(Register::HL)};
+    m_instruction_handlers[0x6F] = {&execute_ld, Register::L, Register::A};
+
+    // m_instruction_handlers - 0x7X
+    m_instruction_handlers[0x70] = {&execute_ld, indirect(Register::HL), Register::B};
+    m_instruction_handlers[0x71] = {&execute_ld, indirect(Register::HL), Register::C};
+    m_instruction_handlers[0x72] = {&execute_ld, indirect(Register::HL), Register::D};
+    m_instruction_handlers[0x73] = {&execute_ld, indirect(Register::HL), Register::E};
+    m_instruction_handlers[0x74] = {&execute_ld, indirect(Register::HL), Register::H};
+    m_instruction_handlers[0x75] = {&execute_ld, indirect(Register::HL), Register::L};
+    m_instruction_handlers[0x76] = {&execute_halt};
+    m_instruction_handlers[0x77] = {&execute_ld, indirect(Register::HL), Register::A};
+    m_instruction_handlers[0x78] = {&execute_ld, Register::A, Register::B};
+    m_instruction_handlers[0x79] = {&execute_ld, Register::A, Register::C};
+    m_instruction_handlers[0x7A] = {&execute_ld, Register::A, Register::D};
+    m_instruction_handlers[0x7B] = {&execute_ld, Register::A, Register::E};
+    m_instruction_handlers[0x7C] = {&execute_ld, Register::A, Register::H};
+    m_instruction_handlers[0x7D] = {&execute_ld, Register::A, Register::L};
+    m_instruction_handlers[0x7E] = {&execute_ld, Register::A, indirect(Register::HL)};
+    m_instruction_handlers[0x7F] = {&execute_ld, Register::A, Register::A};
+
+    // m_instruction_handlers - 0x8X
+    m_instruction_handlers[0x80] = {&execute_add, Register::A, Register::B};
+    m_instruction_handlers[0x81] = {&execute_add, Register::A, Register::C};
+    m_instruction_handlers[0x82] = {&execute_add, Register::A, Register::D};
+    m_instruction_handlers[0x83] = {&execute_add, Register::A, Register::E};
+    m_instruction_handlers[0x84] = {&execute_add, Register::A, Register::H};
+    m_instruction_handlers[0x85] = {&execute_add, Register::A, Register::L};
+    m_instruction_handlers[0x86] = {&execute_add, Register::A, indirect(Register::HL)};
+    m_instruction_handlers[0x87] = {&execute_add, Register::A, Register::A};
+    m_instruction_handlers[0x88] = {&execute_adc, Register::A, Register::B};
+    m_instruction_handlers[0x89] = {&execute_adc, Register::A, Register::C};
+    m_instruction_handlers[0x8A] = {&execute_adc, Register::A, Register::D};
+    m_instruction_handlers[0x8B] = {&execute_adc, Register::A, Register::E};
+    m_instruction_handlers[0x8C] = {&execute_adc, Register::A, Register::H};
+    m_instruction_handlers[0x8D] = {&execute_adc, Register::A, Register::L};
+    m_instruction_handlers[0x8E] = {&execute_adc, Register::A, indirect(Register::HL)};
+    m_instruction_handlers[0x8F] = {&execute_adc, Register::A, Register::A};
+
+    // m_instruction_handlers - 0x9X
+    m_instruction_handlers[0x90] = {&execute_sub, Register::A, Register::B};
+    m_instruction_handlers[0x91] = {&execute_sub, Register::A, Register::C};
+    m_instruction_handlers[0x92] = {&execute_sub, Register::A, Register::D};
+    m_instruction_handlers[0x93] = {&execute_sub, Register::A, Register::E};
+    m_instruction_handlers[0x94] = {&execute_sub, Register::A, Register::H};
+    m_instruction_handlers[0x95] = {&execute_sub, Register::A, Register::L};
+    m_instruction_handlers[0x96] = {&execute_sub, Register::A, indirect(Register::HL)};
+    m_instruction_handlers[0x97] = {&execute_sub, Register::A, Register::A};
+    m_instruction_handlers[0x98] = {&execute_sbc, Register::B};
+    m_instruction_handlers[0x99] = {&execute_sbc, Register::C};
+    m_instruction_handlers[0x9A] = {&execute_sbc, Register::D};
+    m_instruction_handlers[0x9B] = {&execute_sbc, Register::E};
+    m_instruction_handlers[0x9C] = {&execute_sbc, Register::H};
+    m_instruction_handlers[0x9D] = {&execute_sbc, Register::L};
+    m_instruction_handlers[0x9E] = {&execute_sbc, indirect(Register::HL)};
+    m_instruction_handlers[0x9F] = {&execute_sbc, Register::A};
+
+    // m_instruction_handlers - 0xAX
+    m_instruction_handlers[0xA0] = {&execute_and, Register::B};
+    m_instruction_handlers[0xA1] = {&execute_and, Register::C};
+    m_instruction_handlers[0xA2] = {&execute_and, Register::D};
+    m_instruction_handlers[0xA3] = {&execute_and, Register::E};
+    m_instruction_handlers[0xA4] = {&execute_and, Register::H};
+    m_instruction_handlers[0xA5] = {&execute_and, Register::L};
+    m_instruction_handlers[0xA6] = {&execute_and, indirect(Register::HL)};
+    m_instruction_handlers[0xA7] = {&execute_and, Register::A};
+    m_instruction_handlers[0xA8] = {&execute_xor, Register::B};
+    m_instruction_handlers[0xA9] = {&execute_xor, Register::C};
+    m_instruction_handlers[0xAA] = {&execute_xor, Register::D};
+    m_instruction_handlers[0xAB] = {&execute_xor, Register::E};
+    m_instruction_handlers[0xAC] = {&execute_xor, Register::H};
+    m_instruction_handlers[0xAD] = {&execute_xor, Register::L};
+    m_instruction_handlers[0xAE] = {&execute_xor, indirect(Register::HL)};
+    m_instruction_handlers[0xAF] = {&execute_xor, Register::A};
+
+    // m_instruction_handlers - 0xBX
+    m_instruction_handlers[0xB0] = {&execute_or, Register::A, Register::B};
+    m_instruction_handlers[0xB1] = {&execute_or, Register::A, Register::C};
+    m_instruction_handlers[0xB2] = {&execute_or, Register::A, Register::D};
+    m_instruction_handlers[0xB3] = {&execute_or, Register::A, Register::E};
+    m_instruction_handlers[0xB4] = {&execute_or, Register::A, Register::H};
+    m_instruction_handlers[0xB5] = {&execute_or, Register::A, Register::L};
+    m_instruction_handlers[0xB6] = {&execute_or, Register::A, indirect(Register::HL)};
+    m_instruction_handlers[0xB7] = {&execute_or, Register::A, Register::A};
+    m_instruction_handlers[0xB8] = {&execute_cp, Register::B};
+    m_instruction_handlers[0xB9] = {&execute_cp, Register::C};
+    m_instruction_handlers[0xBA] = {&execute_cp, Register::D};
+    m_instruction_handlers[0xBB] = {&execute_cp, Register::E};
+    m_instruction_handlers[0xBC] = {&execute_cp, Register::H};
+    m_instruction_handlers[0xBD] = {&execute_cp, Register::L};
+    m_instruction_handlers[0xBE] = {&execute_cp, indirect(Register::HL)};
+    m_instruction_handlers[0xBF] = {&execute_cp, Register::A};
+
+    // m_instruction_handlers - 0xCX
+    m_instruction_handlers[0xC0] = {&execute_ret, OperandType::None, OperandType::None, Condition::NZ};
+    m_instruction_handlers[0xC1] = {&execute_pop, Register::BC};
+    m_instruction_handlers[0xC2] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::NZ};
+    m_instruction_handlers[0xC3] = {&execute_jp, OperandType::Address16};
+    m_instruction_handlers[0xC4] = {&execute_call, OperandType::Address16, OperandType::None, Condition::NZ};
+    m_instruction_handlers[0xC5] = {&execute_push, Register::BC};
+    m_instruction_handlers[0xC6] = {&execute_add, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xC7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x00};
+    m_instruction_handlers[0xC8] = {&execute_ret, OperandType::None, OperandType::None, Condition::Z};
+    m_instruction_handlers[0xC9] = {&execute_ret};
+    m_instruction_handlers[0xCA] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::Z};
+    m_instruction_handlers[0xCC] = {&execute_call, OperandType::Address16, OperandType::None, Condition::Z};
+    m_instruction_handlers[0xCD] = {&execute_call, OperandType::Address16};
+    m_instruction_handlers[0xCE] = {&execute_adc, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xCF] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x08};
+
+    // m_instruction_handlers - 0xDX
+    m_instruction_handlers[0xD0] = {&execute_ret, OperandType::None, OperandType::None, Condition::NC};
+    m_instruction_handlers[0xD1] = {&execute_pop, Register::DE};
+    m_instruction_handlers[0xD2] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::NC};
+    m_instruction_handlers[0xD4] = {&execute_call, OperandType::Address16, OperandType::None, Condition::NC};
+    m_instruction_handlers[0xD5] = {&execute_push, Register::DE};
+    m_instruction_handlers[0xD6] = {&execute_sub, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xD7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x10};
+    m_instruction_handlers[0xD8] = {&execute_ret, OperandType::None, OperandType::None, Condition::C};
+    m_instruction_handlers[0xD9] = {&execute_reti};
+    m_instruction_handlers[0xDA] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::C};
+    m_instruction_handlers[0xDC] = {&execute_call, OperandType::Address16, OperandType::None, Condition::C};
+    m_instruction_handlers[0xDE] = {&execute_sbc, OperandType::Data8u};
+    m_instruction_handlers[0xDF] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x18};
+
+    // m_instruction_handlers - 0xEX
+    m_instruction_handlers[0xE0] = {&execute_ld, OperandType::Address8, Register::A};
+    m_instruction_handlers[0xE1] = {&execute_pop, Register::HL};
+    m_instruction_handlers[0xE2] = {&execute_ld, indirect(Register::C), Register::A};
+    m_instruction_handlers[0xE5] = {&execute_push, Register::HL};
+    m_instruction_handlers[0xE6] = {&execute_and, OperandType::Data8u};
+    m_instruction_handlers[0xE7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x20};
+    m_instruction_handlers[0xE8] = {&execute_add, Register::SP, OperandType::Data8u};
+    m_instruction_handlers[0xE9] = {&execute_jp, Register::HL};
+    m_instruction_handlers[0xEA] = {&execute_ld, OperandType::Address16, Register::A};
+    m_instruction_handlers[0xEE] = {&execute_xor, OperandType::Data8u};
+    m_instruction_handlers[0xEF] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x28};
+
+    // m_instruction_handlers - 0xFX
+    m_instruction_handlers[0xF0] = {&execute_ld, Register::A, OperandType::Address8};
+    m_instruction_handlers[0xF1] = {&execute_pop, Register::AF};
+    m_instruction_handlers[0xF2] = {&execute_ld, Register::A, indirect(Register::C)};
+    m_instruction_handlers[0xF3] = {&execute_di};
+    m_instruction_handlers[0xF5] = {&execute_push, Register::AF};
+    m_instruction_handlers[0xF6] = {&execute_or, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xF7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x30};
+    m_instruction_handlers[0xF8] = {&execute_ld, Register::HL, OperandType::RelativeAddress8sp};
+    m_instruction_handlers[0xF9] = {&execute_ld, Register::SP, Register::HL};
+    m_instruction_handlers[0xFA] = {&execute_ld, Register::A, OperandType::Address16};
+    m_instruction_handlers[0xFB] = {&execute_ei};
+    m_instruction_handlers[0xFE] = {&execute_cp, OperandType::Data8u};
+    m_instruction_handlers[0xFF] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x38};
+
+    // m_instruction_handlers_cb - 0x1X
+    auto add_octet = [&](const u8 start, const instruction_function_t function, const u8 param = 0) {
+        m_instruction_handlers_cb[start + 0] = {function, Register::B, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 1] = {function, Register::C, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 2] = {function, Register::D, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 3] = {function, Register::E, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 4] = {function, Register::H, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 5] = {function, Register::L, OperandType::None, Condition::None, param};
+        m_instruction_handlers_cb[start + 6] = {function, indirect(Register::HL), OperandType::None, Condition::None,
+                                                param};
+        m_instruction_handlers_cb[start + 7] = {function, Register::A, OperandType::None, Condition::None, param};
+    };
+    add_octet(0000, &execute_rlc);
+    add_octet(0010, &execute_rrc);
+    add_octet(0020, &execute_rl);
+    add_octet(0030, &execute_rr);
+    add_octet(0040, &execute_sla);
+    // add_octet(0050, &execute_sra);
+    // add_octet(0060, &execute_swap);
+    // add_octet(0070, &execute_srl);
+    add_octet(0100, &execute_bit, 0);
+    add_octet(0110, &execute_bit, 1);
+    add_octet(0120, &execute_bit, 2);
+    add_octet(0130, &execute_bit, 3);
+    add_octet(0140, &execute_bit, 4);
+    add_octet(0150, &execute_bit, 5);
+    add_octet(0160, &execute_bit, 6);
+    add_octet(0170, &execute_bit, 7);
+    add_octet(0200, &execute_res, 0);
+    add_octet(0210, &execute_res, 1);
+    add_octet(0220, &execute_res, 2);
+    add_octet(0230, &execute_res, 3);
+    add_octet(0240, &execute_res, 4);
+    add_octet(0250, &execute_res, 5);
+    add_octet(0260, &execute_res, 6);
+    add_octet(0270, &execute_res, 7);
+    add_octet(0300, &execute_set, 0);
+    add_octet(0310, &execute_set, 1);
+    add_octet(0320, &execute_set, 2);
+    add_octet(0330, &execute_set, 3);
+    add_octet(0340, &execute_set, 4);
+    add_octet(0350, &execute_set, 5);
+    add_octet(0360, &execute_set, 6);
+    add_octet(0370, &execute_set, 7);
+}
+
+u8 Cpu::peek_u8() const { return m_emulator.m_bus.read_u8(m_registers.pc, false); }
+
+u16 Cpu::peek_u16() const {
+    const auto lo = m_emulator.m_bus.read_u8(m_registers.pc, false);
+    const auto hi = m_emulator.m_bus.read_u8(m_registers.pc + 1, false);
+    return combine_bytes(hi, lo);
+}
+
 u8 Cpu::fetch_u8() { return m_emulator.m_bus.read_u8(m_registers.pc++); }
 
 u16 Cpu::fetch_u16() {
@@ -173,7 +637,7 @@ void Cpu::execute_next_instruction() {
 
     // Read the next opcode from the program counter
     auto ticks = m_emulator.m_ticks;
-    const auto opcode = m_emulator.m_bus.read_u8(m_registers.pc++);
+    auto opcode = fetch_u8();
 
     auto prefix = fmt::format(
         "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} L={:02x} "
@@ -183,357 +647,300 @@ void Cpu::execute_next_instruction() {
         m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-", m_registers.get_c() ? "C" : "-", opcode,
         m_emulator.m_bus.read_u8(m_registers.pc, false), m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
-    // spdlog::info(fmt::format("{}", prefix));
+    spdlog::info(fmt::format("{}", prefix));
 
-    switch (opcode) {
-        case 0x00: {
-            spdlog::info(fmt::format("{} NOOP", prefix));
-            return;
+    const auto *instruction_set = &m_instruction_handlers;
+
+    if (opcode == 0xCB) {
+        opcode = fetch_u8();
+
+        const auto &instruction = m_instruction_handlers_cb[opcode];
+        if (instruction.m_handler == nullptr) {
+            throw std::runtime_error(fmt::format("{} Unknown opcode CB {:02x}", prefix, opcode));
         }
-
-        case 0xF3: {
-            spdlog::info(fmt::format("{} DI", prefix));
-            m_int_master_enabled = false;
-            return;
-        }
-
-        case 0xCB: {
-            execute_cb(prefix);
-            return;
-        }
-
-        default:
-            if (execute_ld(prefix, opcode) || execute_xor(prefix, opcode) || execute_cp(prefix, opcode) ||
-                execute_and(prefix, opcode) || execute_sub(prefix, opcode) || execute_jp(prefix, opcode) ||
-                execute_call(prefix, opcode) || execute_inc(prefix, opcode) || execute_dec(prefix, opcode))
-                return;
-    }
-    throw std::runtime_error(fmt::format("{} Unknown opcode {:02x}", prefix, opcode));
-}
-
-bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
-    switch (opcode) {
-        // LD R, d8
-        case 0x06: return execute_ld_d(debug_prefix, Register::B);
-        case 0x0E: return execute_ld_d(debug_prefix, Register::C);
-        case 0x16: return execute_ld_d(debug_prefix, Register::D);
-        case 0x1E: return execute_ld_d(debug_prefix, Register::E);
-        case 0x26: return execute_ld_d(debug_prefix, Register::H);
-        case 0x2E: return execute_ld_d(debug_prefix, Register::L);
-        case 0x3E: return execute_ld_d(debug_prefix, Register::A);
-
-        // LD R, d16
-        case 0x01: return execute_ld_d(debug_prefix, Register::BC);
-        case 0x11: return execute_ld_d(debug_prefix, Register::DE);
-        case 0x21: return execute_ld_d(debug_prefix, Register::HL);
-        case 0x31: return execute_ld_d(debug_prefix, Register::SP);
-
-        // LD R, R
-        case 0x40: return execute_ld_r8_r8(debug_prefix, Register::B, Register::B);
-        case 0x41: return execute_ld_r8_r8(debug_prefix, Register::B, Register::C);
-        case 0x42: return execute_ld_r8_r8(debug_prefix, Register::B, Register::D);
-        case 0x43: return execute_ld_r8_r8(debug_prefix, Register::B, Register::E);
-        case 0x44: return execute_ld_r8_r8(debug_prefix, Register::B, Register::H);
-        case 0x45: return execute_ld_r8_r8(debug_prefix, Register::B, Register::L);
-        case 0x47: return execute_ld_r8_r8(debug_prefix, Register::B, Register::A);
-
-        case 0x48: return execute_ld_r8_r8(debug_prefix, Register::C, Register::B);
-        case 0x49: return execute_ld_r8_r8(debug_prefix, Register::C, Register::C);
-        case 0x4A: return execute_ld_r8_r8(debug_prefix, Register::C, Register::D);
-        case 0x4B: return execute_ld_r8_r8(debug_prefix, Register::C, Register::E);
-        case 0x4C: return execute_ld_r8_r8(debug_prefix, Register::C, Register::H);
-        case 0x4D: return execute_ld_r8_r8(debug_prefix, Register::C, Register::L);
-        case 0x4F: return execute_ld_r8_r8(debug_prefix, Register::C, Register::A);
-
-        case 0x50: return execute_ld_r8_r8(debug_prefix, Register::D, Register::B);
-        case 0x51: return execute_ld_r8_r8(debug_prefix, Register::D, Register::C);
-        case 0x52: return execute_ld_r8_r8(debug_prefix, Register::D, Register::D);
-        case 0x53: return execute_ld_r8_r8(debug_prefix, Register::D, Register::E);
-        case 0x54: return execute_ld_r8_r8(debug_prefix, Register::D, Register::H);
-        case 0x55: return execute_ld_r8_r8(debug_prefix, Register::D, Register::L);
-        case 0x57: return execute_ld_r8_r8(debug_prefix, Register::D, Register::A);
-
-        case 0x58: return execute_ld_r8_r8(debug_prefix, Register::E, Register::B);
-        case 0x59: return execute_ld_r8_r8(debug_prefix, Register::E, Register::C);
-        case 0x5A: return execute_ld_r8_r8(debug_prefix, Register::E, Register::D);
-        case 0x5B: return execute_ld_r8_r8(debug_prefix, Register::E, Register::E);
-        case 0x5C: return execute_ld_r8_r8(debug_prefix, Register::E, Register::H);
-        case 0x5D: return execute_ld_r8_r8(debug_prefix, Register::E, Register::L);
-        case 0x5F: return execute_ld_r8_r8(debug_prefix, Register::E, Register::A);
-
-        case 0x60: return execute_ld_r8_r8(debug_prefix, Register::H, Register::B);
-        case 0x61: return execute_ld_r8_r8(debug_prefix, Register::H, Register::C);
-        case 0x62: return execute_ld_r8_r8(debug_prefix, Register::H, Register::D);
-        case 0x63: return execute_ld_r8_r8(debug_prefix, Register::H, Register::E);
-        case 0x64: return execute_ld_r8_r8(debug_prefix, Register::H, Register::H);
-        case 0x65: return execute_ld_r8_r8(debug_prefix, Register::H, Register::L);
-        case 0x67: return execute_ld_r8_r8(debug_prefix, Register::H, Register::A);
-
-        case 0x68: return execute_ld_r8_r8(debug_prefix, Register::L, Register::B);
-        case 0x69: return execute_ld_r8_r8(debug_prefix, Register::L, Register::C);
-        case 0x6A: return execute_ld_r8_r8(debug_prefix, Register::L, Register::D);
-        case 0x6B: return execute_ld_r8_r8(debug_prefix, Register::L, Register::E);
-        case 0x6C: return execute_ld_r8_r8(debug_prefix, Register::L, Register::H);
-        case 0x6D: return execute_ld_r8_r8(debug_prefix, Register::L, Register::L);
-        case 0x6F: return execute_ld_r8_r8(debug_prefix, Register::L, Register::A);
-
-        case 0x78: return execute_ld_r8_r8(debug_prefix, Register::A, Register::B);
-        case 0x79: return execute_ld_r8_r8(debug_prefix, Register::A, Register::C);
-        case 0x7A: return execute_ld_r8_r8(debug_prefix, Register::A, Register::D);
-        case 0x7B: return execute_ld_r8_r8(debug_prefix, Register::A, Register::E);
-        case 0x7C: return execute_ld_r8_r8(debug_prefix, Register::A, Register::H);
-        case 0x7D: return execute_ld_r8_r8(debug_prefix, Register::A, Register::L);
-        case 0x7F: return execute_ld_r8_r8(debug_prefix, Register::A, Register::A);
-
-        // LD (HL+), A
-        case 0x22: {
-            // Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register. The
-            // value of HL is incremented after the memory write.
-            //
-            // Cycles: 2
-            // Flags: - - - -
-            spdlog::info(fmt::format("{} LD (HL+), A ", debug_prefix));
-            const auto HL = m_registers.get_HL();
-            m_emulator.m_bus.write_u8(HL, m_registers.a);
-            m_registers.set_HL(HL + 1);
-            return true;
-        }
-
-        // LD (HL-), A
-        case 0x32: {
-            // Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register. The
-            // value of HL is decremented after the memory write.
-            //
-            // Cycles: 2
-            // Flags: - - - -
-            spdlog::info(fmt::format("{} LD (HL-), A ", debug_prefix));
-            const auto HL = m_registers.get_HL();
-            m_emulator.m_bus.write_u8(HL, m_registers.a);
-            m_registers.set_HL(HL - 1);
-            return true;
-        }
-
-        case 0xE0: {  // LDH (a8),A = LD (0xFF00 + a8),A
-            const auto a8 = fetch_u8();
-            const auto address = 0xFF00 + a8;
-            spdlog::info(fmt::format("{} LDH ({:02x}), A = LD ({:04x}), A", debug_prefix, a8, address));
-            execute_ld(address, Register::A);
-            return true;
-        }
-
-        case 0xEA: {  // LD (a16),A
-            const auto address = fetch_u16();
-            spdlog::info(fmt::format("{} LDH ({:04x}), A", debug_prefix, address));
-            execute_ld(address, Register::A);
-            return true;
-        }
-
-        case 0xF0: {  // LDH A,(a8) = LD A,(0xFF00 + a8)
-            const auto a8 = fetch_u8();
-            const auto address = 0xFF00 + a8;
-            spdlog::info(fmt::format("{} LDH A, ({:02x}) = LD A, ({:04x})", debug_prefix, a8, address));
-            execute_ld(Register::A, address);
-            return true;
-        }
-
-        case 0xFA: {  // LD A,(a16)
-            const auto address = fetch_u16();
-            spdlog::info(fmt::format("{} LD A, ({:04x})", debug_prefix, address));
-            execute_ld(Register::A, address);
-            return true;
-        }
-
-        default: return false;
-    }
-}
-
-bool Cpu::execute_ld_d(const std::string &debug_prefix, const Register reg) {
-    if (is_16bit(reg)) {
-        const auto d16 = fetch_u16();
-        spdlog::info(fmt::format("{} LD {}, {:04x}", debug_prefix, magic_enum::enum_name(reg), d16));
-        m_registers.set_u16(reg, d16);
-
+        (this->*instruction.m_handler)(prefix, instruction);
     } else {
-        const auto d8 = fetch_u8();
-        spdlog::info(fmt::format("{} LD {}, {:02x}", debug_prefix, magic_enum::enum_name(reg), d8));
-        m_registers.set_u8(reg, d8);
+        const auto &instruction = m_instruction_handlers[opcode];
+        if (instruction.m_handler == nullptr) {
+            throw std::runtime_error(fmt::format("{} Unknown opcode {:02x}", prefix, opcode));
+        }
+        (this->*instruction.m_handler)(prefix, instruction);
     }
 
-    return true;
+    //
+    //     switch (opcode) {
+    //         case 0x00: {
+    //             spdlog::info(fmt::format("{} NOOP", prefix));
+    //             return;
+    //         }
+    //         case 0x10: {
+    //             spdlog::info(fmt::format("{} STOP", prefix));
+    //             // TODO: Handle STOP
+    //             throw std::runtime_error("STOP");
+    //         }
+    //         case 0x76: {
+    //             spdlog::info(fmt::format("{} HALT", prefix));
+    //             // TODO: Handle HALT
+    //             throw std::runtime_error("HALT");
+    //         }
+    //
+    //         case 0xF3: {
+    //             spdlog::info(fmt::format("{} DI", prefix));
+    //             m_int_master_enabled = false;
+    //             return;
+    //         }
+    //
+    //         case 0xCB: {
+    //             execute_cb(prefix);
+    //             return;
+    //         }
+    //
+    //             // default:
+    //             //     if (execute_ld(prefix, opcode) || execute_xor(prefix, opcode) || execute_cp(prefix, opcode) ||
+    //             //         execute_and(prefix, opcode) || execute_sub(prefix, opcode) || execute_jp(prefix, opcode)
+    //             ||
+    //             //         execute_call(prefix, opcode) || execute_inc(prefix, opcode) || execute_dec(prefix,
+    //             opcode))
+    //             //         return;
+    //     }
+    //
+    //     auto format_register = [](const Register reg, const bool hl_is_indirect = true,
+    //                               PostLoadOperation post_load_operation = PostLoadOperation::Nothing) {
+    //         if (reg != Register::HL || !hl_is_indirect) {
+    //             return magic_enum::enum_name(reg);
+    //         }
+    //         switch (post_load_operation) {
+    //             case PostLoadOperation::Decrement: return "[HL-]";
+    //             case PostLoadOperation::Increment: return "[HL+]";
+    //             default: return "[HL]";
+    //         }
+    //     };
+    //
+    //     const auto last_octet = opcode & 0b111;
+    //     const auto first_half = last_octet >> 3;
+    //
+    //     // register-register loads
+    //     if (010 <= first_half <= 017) {
+    //         const auto r1 = g_register_order[first_half - 010];
+    //         const auto r2 = g_register_order[last_octet];
+    //         // spdlog::info(fmt::format("{} LD {}, {}", prefix, format_register(r1), format_register(r2)));
+    //         return execute_ld(*this, r1, r2);
+    //     }
+    //
+    //     // 16-bit loads
+    //     switch (opcode) {
+    //         case 0x02: return execute_ld(*this, Register::BC, Register::A);
+    //         case 0x0A: return execute_ld(*this, Register::A, Register::BC);
+    //         case 0x12: return execute_ld(*this, Register::DE, Register::A);
+    //         case 0x1A: return execute_ld(*this, Register::A, Register::DE);
+    //         case 0x22: return execute_ld(*this, Register::HL, Register::A, PostLoadOperation::Increment);
+    //         case 0x2A: return execute_ld(*this, Register::A, Register::HL, PostLoadOperation::Increment);
+    //         case 0x32: return execute_ld(*this, Register::HL, Register::A, PostLoadOperation::Decrement);
+    //         case 0x3A: return execute_ld(*this, Register::A, Register::HL, PostLoadOperation::Decrement);
+    //     }
+    //
+    //     // 8-bit loads
+    //     switch (opcode) {
+    //         case 0x06: return execute_ld_n8(*this, Register::B);
+    //         case 0x16: return execute_ld_n8(*this, Register::D);
+    //         case 0x26: return execute_ld_n8(*this, Register::H);
+    //         case 0x36: return execute_ld_n8(*this, Register::HL, PostLoadOperation::Increment);
+    //     }
+    //
+    //      throw std::runtime_error(fmt::format("{} Unknown opcode {:02x}", prefix, opcode));
 }
 
-void Cpu::execute_ld(const u16 address, const Register reg) {
-    if (is_16bit(reg)) {
-        m_emulator.m_bus.write_u16(address, m_registers.get_u16(reg));
+void Cpu::execute_noop(const std::string &debug_prefix, const CpuInstruction &) {
+    spdlog::info(fmt::format("{} NOP", debug_prefix));
+}
+
+void Cpu::execute_stop(const std::string &debug_prefix, const CpuInstruction &) {
+    const auto data = fetch_u8();
+    spdlog::info(fmt::format("{} STOP {:02x}", debug_prefix, data));
+    throw std::runtime_error("Stopped");
+}
+
+void Cpu::execute_halt(const std::string &debug_prefix, const CpuInstruction &) {
+    spdlog::info(fmt::format("{} HALT", debug_prefix));
+    throw std::runtime_error("halted");
+}
+
+void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} LD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2)));
+
+    if (is_address(instruction.m_op1)) {
+        // Load into address
+        const auto address = decode_address(instruction.m_op1);
+        const auto value = decode_u8(instruction.m_op2);
+        m_emulator.m_bus.write_u8(address, value);
+    } else if (is_16bit(instruction.m_op1.m_register.value())) {
+        // Load into 16-bit register
+        const auto value = decode_u16(instruction.m_op2);
+        m_registers.set_u16(instruction.m_op1.m_register.value(), value);
     } else {
-        m_emulator.m_bus.write_u8(address, m_registers.get_u8(reg));
+        // Load into 8-bit register
+        const auto value = decode_u8(instruction.m_op2);
+        m_registers.set_u8(instruction.m_op1.m_register.value(), value);
     }
 }
 
-void Cpu::execute_ld(const Register reg, const u16 address) {
-    if (is_16bit(reg)) {
-        const auto data = m_emulator.m_bus.read_u16(address);
-        m_registers.set_u16(reg, data);
+void Cpu::execute_inc(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} INC {}", dbg, to_string(instruction.m_op1)));
+    const auto reg = instruction.m_op1.m_register.value();
+
+    if (is_16bit(instruction.m_op1.m_register.value())) {
+        if (!instruction.m_op1.m_register_is_indirect) {
+            // 16-bit direct increment, e.g. INC DE. Two cycles.
+            const u16 old_value = decode_u16(instruction.m_op1);
+            const u16 new_value = old_value + 1;
+            m_registers.set_u16(reg, new_value);
+
+            // 16-bit operations take 1 extra cycle and don't modify flags
+            m_emulator.add_cycles(1);
+        } else {
+            // 16-bit indirect increment, e.g. INC [HL]
+            const u16 address = m_registers.get_u16(reg);
+            const u8 old_value = m_emulator.m_bus.read_u16(address);
+            const int new_value_int = static_cast<int>(old_value) + 1;
+            const u8 new_value = new_value_int & 0xFF;
+
+            m_emulator.m_bus.write_u8(address, new_value);
+
+            m_registers.set_z(new_value == 0);
+            m_registers.set_n(false);
+            m_registers.set_h(new_value_int & 0xF == 0);
+        }
     } else {
-        const auto data = m_emulator.m_bus.read_u8(address);
-        m_registers.set_u8(reg, data);
+        // 8-bit direct increment, e.g. INC B. One cycle.
+        const u8 old_value = m_registers.get_u8(reg);
+        const int new_value_int = static_cast<int>(old_value) + 1;
+        const u8 new_value = new_value_int & 0xFF;
+
+        m_registers.set_u8(reg, new_value);
+
+        m_registers.set_z(new_value == 0);
+        m_registers.set_n(false);
+        m_registers.set_h(new_value_int & 0xF == 0);
     }
 }
 
-bool Cpu::execute_ld_r8_r8(const std::string &debug_prefix, const Register reg1, const Register reg2) {
-    spdlog::info(fmt::format("{} LD {}, {}", debug_prefix, magic_enum::enum_name(reg1), magic_enum::enum_name(reg2)));
-    m_registers.set_u8(reg1, m_registers.get_u8(reg2));
-    return true;
-}
+void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} DEC {}", dbg, to_string(instruction.m_op1)));
+    const auto reg = instruction.m_op1.m_register.value();
 
-bool Cpu::execute_inc(const std::string &debug_prefix, u8 opcode) {
-    switch (opcode) {
-        // INC R
-        case 0x04: return execute_inc_r8(debug_prefix, Register::B);
-        case 0x14: return execute_inc_r8(debug_prefix, Register::C);
-        case 0x24: return execute_inc_r8(debug_prefix, Register::H);
-        case 0x0C: return execute_inc_r8(debug_prefix, Register::C);
-        case 0x1C: return execute_inc_r8(debug_prefix, Register::E);
-        case 0x2C: return execute_inc_r8(debug_prefix, Register::L);
-        case 0x3C: return execute_inc_r8(debug_prefix, Register::A);
+    if (is_16bit(instruction.m_op1.m_register.value())) {
+        if (!instruction.m_op1.m_register_is_indirect) {
+            // 16-bit direct increment, e.g. DEC DE. Two cycles.
+            const u16 old_value = decode_u16(instruction.m_op1);
+            const u16 new_value = old_value - 1;
+            m_registers.set_u16(reg, new_value);
 
-        // INC RR
-        case 0x03: return execute_inc_r8(debug_prefix, Register::BC);
-        case 0x13: return execute_inc_r8(debug_prefix, Register::DE);
-        case 0x23: return execute_inc_r8(debug_prefix, Register::HL);
-        case 0x33: return execute_inc_r8(debug_prefix, Register::SP);
+            // 16-bit operations take 1 extra cycle and don't modify flags
+            m_emulator.add_cycles(1);
+        } else {
+            // 16-bit indirect increment, e.g. DEC [HL]
+            const u16 address = m_registers.get_u16(reg);
+            const u8 old_value = m_emulator.m_bus.read_u16(address);
+            const int new_value_int = static_cast<int>(old_value) - 1;
+            const u8 new_value = new_value_int & 0xFF;
 
-        // INC [HL]
-        case 0x34: throw std::runtime_error("INC (HL)");
+            m_emulator.m_bus.write_u8(address, new_value);
 
-        default: return false;
+            // TODO: Check cycles. Expected +3, but I think it may be +4. inc/dec on [HL] is atomic?
+
+            m_registers.set_z(new_value == 0);
+            m_registers.set_n(true);
+            m_registers.set_h(new_value_int & 0xF == 0);
+        }
+    } else {
+        // 8-bit direct increment, e.g. DEC B. One cycle.
+        const u8 old_value = m_registers.get_u8(reg);
+        const int new_value_int = static_cast<int>(old_value) - 1;
+        const u8 new_value = new_value_int & 0xFF;
+
+        m_registers.set_u8(reg, new_value);
+
+        m_registers.set_z(new_value == 0);
+        m_registers.set_n(true);
+        m_registers.set_h(new_value_int & 0xF == 0);
     }
 }
 
-bool Cpu::execute_inc_r8(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
+void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} ADD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2)));
 
-    const u8 old_value = m_registers.get_u8(reg);
-    const u8 new_value = old_value + 1;
+    // op1 is always a register
+    const auto reg1 = instruction.m_op1.m_register.value();
 
-    m_registers.set_z(new_value == 0);
     m_registers.set_n(false);
-    m_registers.set_h(new_value & 0x0F == 0);
 
-    m_registers.set_u8(reg, new_value);
-    return true;
-}
+    if (reg1 == Register::A) {
+        // 8-bit add to A
+        const auto old_value = m_registers.get_u8(reg1);
+        const auto added_value = decode_u8(instruction.m_op2);
 
-bool Cpu::execute_inc_r16(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
+        const auto new_value_int = static_cast<int>(old_value) + added_value;
+        const auto new_value = static_cast<u8>(new_value_int & 0xFF);
 
-    const u16 old_value = m_registers.get_u16(reg);
-    const u16 new_value = old_value + 1;
+        m_registers.a = new_value;
 
-    m_registers.set_u16(reg, new_value);
+        m_registers.set_z(new_value == 0);
+        m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
+        m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
+    } else if (reg1 == Register::SP) {
+        // Special case
+        const auto old_value = m_registers.sp;
+        const auto added_value = static_cast<s8>(fetch_u8());
+        const auto new_value_int = static_cast<int>(old_value) + added_value;
+        const auto new_value = static_cast<u8>(new_value_int & 0xFF);
 
-    // 16-bit operations take 1 extra cycle and don't modify flags
-    m_emulator.add_cycles(1);
-    return true;
-}
+        m_registers.sp = new_value;
 
-bool Cpu::execute_dec(const std::string &debug_prefix, u8 opcode) {
-    switch (opcode) {
-        // INC R
-        case 0x05: return execute_dec_r8(debug_prefix, Register::B);
-        case 0x15: return execute_dec_r8(debug_prefix, Register::C);
-        case 0x25: return execute_dec_r8(debug_prefix, Register::H);
-        case 0x0D: return execute_dec_r8(debug_prefix, Register::C);
-        case 0x1D: return execute_dec_r8(debug_prefix, Register::E);
-        case 0x2D: return execute_dec_r8(debug_prefix, Register::L);
-        case 0x3D: return execute_dec_r8(debug_prefix, Register::A);
+        m_registers.set_z(false);
+        m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
+        m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
+    } else {
+        // 16-bit add
+        const auto old_value = m_registers.get_u16(reg1);
+        const auto added_value = decode_u16(instruction.m_op2);
 
-        // INC RR
-        case 0x0B: return execute_dec_r8(debug_prefix, Register::BC);
-        case 0x1B: return execute_dec_r8(debug_prefix, Register::DE);
-        case 0x2B: return execute_dec_r8(debug_prefix, Register::HL);
-        case 0x3B: return execute_dec_r8(debug_prefix, Register::SP);
+        const auto new_value_int = static_cast<int>(old_value) + added_value;
+        const auto new_value = static_cast<u16>(new_value_int & 0xFFFF);
 
-        // INC [HL]
-        case 0x35: throw std::runtime_error("DEC (HL)");
+        m_registers.set_u16(reg1, new_value);
 
-        default: return false;
+        m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
+        m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
     }
 }
 
-bool Cpu::execute_dec_r8(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
+void Cpu::execute_adc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
 
-    const u8 old_value = m_registers.get_u8(reg);
-    const u8 new_value = old_value - 1;
+void Cpu::execute_sub(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
 
-    m_registers.set_z(new_value == 0);
+void Cpu::execute_sbc(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} SBC A, {}", dbg, to_string(instruction.m_op1)));
+
+    const auto c = m_registers.get_c() ? 1 : 0;
+    const auto a = static_cast<int>(m_registers.a);
+    const auto b = static_cast<int>(decode_u8(instruction.m_op1));
+
+    const auto value_int = a - b - c;
+    const auto value_half_int = (a & 0xF) - (b & 0xF) - c;
+
+    m_registers.a = static_cast<u8>(value_int);
+
+    m_registers.set_z(value_int == 0);
     m_registers.set_n(true);
-    m_registers.set_h(new_value & 0x0F == 0);
-
-    m_registers.set_u8(reg, new_value);
-    return true;
+    m_registers.set_h(value_half_int < 0);
+    m_registers.set_c(value_int < 0);
 }
 
-bool Cpu::execute_dec_r16(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
-
-    const u16 old_value = m_registers.get_u16(reg);
-    const u16 new_value = old_value - 1;
-
-    m_registers.set_u16(reg, new_value);
-
-    // 16-bit operations take 1 extra cycle and don't modify flags
-    m_emulator.add_cycles(1);
-    return true;
-}
-
-bool Cpu::execute_xor(const std::string &debug_prefix, u8 opcode) {
-    switch (opcode) {
-        case 0xA8: execute_xor_reg(debug_prefix, Register::B); return true;
-        case 0xA9: execute_xor_reg(debug_prefix, Register::C); return true;
-        case 0xAA: execute_xor_reg(debug_prefix, Register::D); return true;
-        case 0xAB: execute_xor_reg(debug_prefix, Register::E); return true;
-        case 0xAC: execute_xor_reg(debug_prefix, Register::H); return true;
-        case 0xAD: execute_xor_reg(debug_prefix, Register::L); return true;
-        case 0xAF: execute_xor_reg(debug_prefix, Register::A); return true;
-        default: return false;
-    }
-}
-
-void Cpu::execute_xor_reg(const std::string &debug_prefix, const Register input_reg) {
-    spdlog::info(fmt::format("{} XOR {}", debug_prefix, magic_enum::enum_name(input_reg)));
-
-    const auto data = m_registers.get_u8(input_reg);
-    m_registers.a ^= data;
-    m_registers.set_z(m_registers.a == 0);
-}
-
-bool Cpu::execute_cp(const std::string &debug_prefix, u8 opcode) {
-    switch (opcode) {
-        case 0xFE: execute_cp(debug_prefix, Register::B); return true;
-    }
-
-    return false;
-}
-
-// CP r: Compare (register)
-//
-// Subtracts from the 8-bit A register, the 8-bit register r, and updates flags based on the result.
-// This instruction is basically identical to SUB r, but does not update the A register
-//
-// opcode = read_memory(addr=PC); PC = PC + 1
-// if opcode == 0xB8: # example: CP B
-//     result, carry_per_bit = A - B
-//     flags.Z = 1 if result == 0 else 0
-//     flags.N = 1
-//     flags.H = 1 if carry_per_bit[3] else 0
-//     flags.C = 1 if carry_per_bit[7] else 0
-void Cpu::execute_cp(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} CP {}", debug_prefix, magic_enum::enum_name(reg)));
+void Cpu::execute_cp(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} CP A, {}", dbg, to_string(instruction.m_op1)));
 
     const auto a = static_cast<int>(m_registers.a);
-    const auto r = static_cast<int>(m_registers.get_u8(reg));
+    const auto r = static_cast<int>(decode_u8(instruction.m_op1));
     const auto result = a - r;
     const auto half_result = (a & 0x0F) - (r & 0x0F);
 
@@ -543,159 +950,765 @@ void Cpu::execute_cp(const std::string &debug_prefix, const Register reg) {
     m_registers.set_c(result < 0);
 }
 
-bool Cpu::execute_and(const std::string &debug_prefix, const u8 opcode) {
-    switch (opcode) {
-        case 0xA0: return execute_and(debug_prefix, Register::B);
-        case 0xA1: return execute_and(debug_prefix, Register::C);
-        case 0xA2: return execute_and(debug_prefix, Register::D);
-        case 0xA3: return execute_and(debug_prefix, Register::E);
-        case 0xA4: return execute_and(debug_prefix, Register::H);
-        case 0xA5: return execute_and(debug_prefix, Register::L);
-        case 0xA6: return execute_and(debug_prefix, Register::HL);
-        case 0xA7: return execute_and(debug_prefix, Register::A);
-        default: return false;
-    }
-}
+void Cpu::execute_and(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} AND A, {}", dbg, to_string(instruction.m_op1)));
 
-// Performs a bitwise AND operation between the 8-bit A register and the 8-bit register r, and stores the result back
-// into the A register.
-bool Cpu::execute_and(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} AND A, {}", debug_prefix, magic_enum::enum_name(reg)));
-
-    if (reg == Register::HL) {
-        throw std::runtime_error("TODO: AND A, HL");
-    }
-
-    if (is_16bit(reg)) {
-        throw std::invalid_argument("reg");
-    }
-
-    m_registers.a = m_registers.a & m_registers.get_u8(reg);
+    m_registers.a &= decode_u8(instruction.m_op1);
     m_registers.set_z(m_registers.a == 0);
     m_registers.set_n(false);
     m_registers.set_h(true);
     m_registers.set_c(false);
-
-    return true;
 }
 
-bool Cpu::execute_sub(const std::string &debug_prefix, const u8 opcode) {
-    switch (opcode) {
-        case 0x90: return execute_sub(debug_prefix, Register::B);
-        case 0x91: return execute_sub(debug_prefix, Register::C);
-        case 0x92: return execute_sub(debug_prefix, Register::D);
-        case 0x93: return execute_sub(debug_prefix, Register::E);
-        case 0x94: return execute_sub(debug_prefix, Register::H);
-        case 0x95: return execute_sub(debug_prefix, Register::L);
-        case 0x96: return execute_sub(debug_prefix, Register::HL);
-        case 0x97: return execute_sub(debug_prefix, Register::A);
-        default: return false;
+void Cpu::execute_or(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} OR A, {}", dbg, to_string(instruction.m_op1)));
+
+    const auto data = decode_u8(instruction.m_op1);
+    m_registers.a |= data;
+    m_registers.set_z(m_registers.a == 0);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(false);
+}
+
+void Cpu::execute_xor(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} XOR A, {}", dbg, to_string(instruction.m_op1)));
+
+    const auto data = decode_u8(instruction.m_op1);
+    m_registers.a ^= data;
+    m_registers.set_z(m_registers.a == 0);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(false);
+}
+
+void Cpu::execute_jp(const std::string &dbg, const CpuInstruction &instruction) {
+    auto jump_type_str = instruction.m_op1.m_type == OperandType::RelativeAddress8pc ? "JR" : "JP";
+    if (instruction.m_condition != Condition::None) {
+        spdlog::info(fmt::format("{} {} {}, {}", dbg, jump_type_str, magic_enum::enum_name(instruction.m_condition),
+                                 to_string(instruction.m_op1)));
+    } else {
+        spdlog::info(fmt::format("{} {} {}", dbg, jump_type_str, to_string(instruction.m_op1)));
+    }
+
+    if (m_registers.check_flags(instruction.m_condition)) {
+        const auto address = decode_address(instruction.m_op1);
+        m_registers.pc = address;
+        m_emulator.add_cycles();
     }
 }
 
-// Subtracts from the 8-bit A register, the 8-bit register r, and stores the result back into the A register
-bool Cpu::execute_sub(const std::string &debug_prefix, const Register reg) {
-    spdlog::info(fmt::format("{} SUB A, {}", debug_prefix, magic_enum::enum_name(reg)));
-
-    if (reg == Register::HL) {
-        throw std::runtime_error("TODO: SUB A, HL");
+void Cpu::execute_call(const std::string &dbg, const CpuInstruction &instruction) {
+    if (instruction.m_condition == Condition::None) {
+        spdlog::info(fmt::format("{} CALL {}", dbg, to_string(instruction.m_op1)));
+    } else {
+        spdlog::info(fmt::format("{} CALL {}, {}", dbg, magic_enum::enum_name(instruction.m_condition),
+                                 to_string(instruction.m_op1)));
     }
-    const auto a = static_cast<int>(m_registers.a);
-    const auto r = static_cast<int>(m_registers.get_u8(reg));
-    const auto result = a - r;
-    const auto half_result = (a & 0x0F) - (r & 0x0F);
 
-    m_registers.set_z(result == 0);
-    m_registers.set_n(true);
-    m_registers.set_h(half_result < 0);
-    m_registers.set_c(result < 0);
-
-    m_registers.a = result;
-    return true;
+    if (m_registers.check_flags(instruction.m_condition)) {
+        stack_push16(m_registers.pc);
+        const auto address = decode_address(instruction.m_op1);
+        m_registers.pc = address;
+        m_emulator.add_cycles();
+    }
 }
 
-bool Cpu::execute_jp(const std::string &debug_prefix, const u8 opcode) {
-    switch (opcode) {
-        // Absolute
-        case 0xC2: return execute_jp_a16(debug_prefix, NZ);
-        case 0xC3: return execute_jp_a16(debug_prefix, None);
-        case 0xCA: return execute_jp_a16(debug_prefix, Z);
-        case 0xB2: return execute_jp_a16(debug_prefix, NC);
-        case 0xBA: return execute_jp_a16(debug_prefix, C);
+void Cpu::execute_rst(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} RST {:02x}", dbg, instruction.m_parameter));
 
-        // Relative
-        case 0x18: return execute_jr_e8(debug_prefix, None);
-        case 0x20: return execute_jr_e8(debug_prefix, NZ);
-        case 0x28: return execute_jr_e8(debug_prefix, Z);
-        case 0x30: return execute_jr_e8(debug_prefix, NC);
-        case 0x38: return execute_jr_e8(debug_prefix, C);
+    stack_push16(m_registers.pc);
+    const auto address = instruction.m_parameter;
+    m_registers.pc = address;
+    m_emulator.add_cycles();
+}
 
-        case 0xE9: {
-            spdlog::info(fmt::format("{} JP HL", debug_prefix));
-            return execute_jp(None, m_registers.get_u16(Register::HL));
+void Cpu::execute_ret(const std::string &dbg, const CpuInstruction &instruction) {
+    if (instruction.m_condition != Condition::None) {
+        spdlog::info(fmt::format("{} RET {}", dbg, magic_enum::enum_name(instruction.m_condition)));
+    } else {
+        spdlog::info(fmt::format("{} RET", dbg));
+    }
+
+    if (m_registers.check_flags(instruction.m_condition)) {
+        m_registers.pc = stack_pop16();
+        m_emulator.add_cycles();
+    }
+}
+
+void Cpu::execute_reti(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info(fmt::format("{} RETI", dbg));
+    m_int_master_enabled = true;
+    m_registers.pc = stack_pop16();
+    m_emulator.add_cycles();
+}
+
+void Cpu::execute_rrca(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} RRCA", dbg));
+
+    auto value = m_registers.a;
+    const bool c = value & 0b1;
+    value >>= 1;
+    set_bit(value, 7, c);
+    m_registers.a = value;
+    m_registers.set_c(c);
+}
+
+void Cpu::execute_rrc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_rra(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_rr(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_rlca(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} RLCA", dbg));
+
+    auto value = m_registers.a;
+    const bool c = (value >> 7) & 0b1;
+    value = (value << 1) | c;
+    m_registers.a = value;
+    m_registers.set_c(c);
+}
+
+void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} SLA {}", dbg, to_string(instruction.m_op1)));
+
+    const u8 old_value = decode_u8(instruction.m_op1);
+    auto value = old_value;
+    value <<= 1;
+    value |= m_registers.get_z() ? 1 : 0;
+
+    write_register_u8(instruction.m_op1.m_register.value(), value);
+
+    m_registers.set_z(value == 0);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(old_value & 0x80);
+}
+
+void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} RL {}", dbg, to_string(instruction.m_op1)));
+
+    const u8 old_value = decode_u8(instruction.m_op1);
+    auto value = old_value;
+    value <<= 1;
+    value |= m_registers.get_z() ? 1 : 0;
+
+    write_register_u8(instruction.m_op1.m_register.value(), value);
+
+    m_registers.set_z(value == 0);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(old_value & 0x80);
+}
+
+void Cpu::execute_push(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_pop(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} POP {}", dbg, to_string(instruction.m_op1)));
+    const auto data = stack_pop16();
+    m_registers.set_u16(instruction.m_op1.m_register.value(), data);
+}
+
+void Cpu::execute_scf(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_ccf(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_cpl(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+
+void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &instruction) {
+    if (m_registers.get_n()) {
+        // Last instruction was a subtraction
+        if (m_registers.get_c()) {
+            m_registers.a -= 0x60;
+        }
+        if (m_registers.get_h()) {
+            m_registers.a -= 0x6;
+        }
+    } else {
+        // Last instruction was an addition
+        if (m_registers.get_c() || m_registers.a > 0x99) {
+            m_registers.a += 0x60;
+            m_registers.set_c(true);
         }
 
-        default: return false;
+        if (m_registers.get_h() || (m_registers.a & 0xF) > 0x9) {
+            m_registers.a += 0x6;
+        }
+    }
+
+    m_registers.set_z(m_registers.a == 0);
+    m_registers.set_h(false);
+}
+
+void Cpu::execute_bit(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} BIT {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1)));
+    const auto value = decode_u8(instruction.m_op1);
+    write_register_u8(instruction.m_op1.m_register.value(), value);
+    m_registers.set_z(get_bit(value, instruction.m_parameter));
+    m_registers.set_n(false);
+    m_registers.set_h(true);
+}
+
+void Cpu::execute_set(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} SET {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1)));
+    auto value = decode_u8(instruction.m_op1);
+    set_bit(value, instruction.m_parameter);
+    write_register_u8(instruction.m_op1.m_register.value(), value);
+}
+
+void Cpu::execute_res(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} RES {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1)));
+    auto value = decode_u8(instruction.m_op1);
+    set_bit(value, instruction.m_parameter, false);
+    write_register_u8(instruction.m_op1.m_register.value(), value);
+}
+
+void Cpu::execute_di(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info(fmt::format("{} DI", dbg));
+    m_int_master_enabled = false;
+}
+
+void Cpu::execute_ei(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info(fmt::format("{} EI", dbg));
+    m_int_master_enabled = true;
+}
+
+// bool Cpu::execute_ld(const std::string &debug_prefix, u8 opcode) {
+//     switch (opcode) {
+//         // LD R, d8
+//         case 0x06: return execute_ld_d(debug_prefix, Register::B);
+//         case 0x0E: return execute_ld_d(debug_prefix, Register::C);
+//         case 0x16: return execute_ld_d(debug_prefix, Register::D);
+//         case 0x1E: return execute_ld_d(debug_prefix, Register::E);
+//         case 0x26: return execute_ld_d(debug_prefix, Register::H);
+//         case 0x2E: return execute_ld_d(debug_prefix, Register::L);
+//         case 0x3E: return execute_ld_d(debug_prefix, Register::A);
+//
+//         // LD R, d16
+//         case 0x01: return execute_ld_d(debug_prefix, Register::BC);
+//         case 0x11: return execute_ld_d(debug_prefix, Register::DE);
+//         case 0x21: return execute_ld_d(debug_prefix, Register::HL);
+//         case 0x31: return execute_ld_d(debug_prefix, Register::SP);
+//
+//         // LD R, R
+//         case 0x40: return execute_ld_r8_r8(debug_prefix, Register::B, Register::B);
+//         case 0x41: return execute_ld_r8_r8(debug_prefix, Register::B, Register::C);
+//         case 0x42: return execute_ld_r8_r8(debug_prefix, Register::B, Register::D);
+//         case 0x43: return execute_ld_r8_r8(debug_prefix, Register::B, Register::E);
+//         case 0x44: return execute_ld_r8_r8(debug_prefix, Register::B, Register::H);
+//         case 0x45: return execute_ld_r8_r8(debug_prefix, Register::B, Register::L);
+//         case 0x47: return execute_ld_r8_r8(debug_prefix, Register::B, Register::A);
+//
+//         case 0x48: return execute_ld_r8_r8(debug_prefix, Register::C, Register::B);
+//         case 0x49: return execute_ld_r8_r8(debug_prefix, Register::C, Register::C);
+//         case 0x4A: return execute_ld_r8_r8(debug_prefix, Register::C, Register::D);
+//         case 0x4B: return execute_ld_r8_r8(debug_prefix, Register::C, Register::E);
+//         case 0x4C: return execute_ld_r8_r8(debug_prefix, Register::C, Register::H);
+//         case 0x4D: return execute_ld_r8_r8(debug_prefix, Register::C, Register::L);
+//         case 0x4F: return execute_ld_r8_r8(debug_prefix, Register::C, Register::A);
+//
+//         case 0x50: return execute_ld_r8_r8(debug_prefix, Register::D, Register::B);
+//         case 0x51: return execute_ld_r8_r8(debug_prefix, Register::D, Register::C);
+//         case 0x52: return execute_ld_r8_r8(debug_prefix, Register::D, Register::D);
+//         case 0x53: return execute_ld_r8_r8(debug_prefix, Register::D, Register::E);
+//         case 0x54: return execute_ld_r8_r8(debug_prefix, Register::D, Register::H);
+//         case 0x55: return execute_ld_r8_r8(debug_prefix, Register::D, Register::L);
+//         case 0x57: return execute_ld_r8_r8(debug_prefix, Register::D, Register::A);
+//
+//         case 0x58: return execute_ld_r8_r8(debug_prefix, Register::E, Register::B);
+//         case 0x59: return execute_ld_r8_r8(debug_prefix, Register::E, Register::C);
+//         case 0x5A: return execute_ld_r8_r8(debug_prefix, Register::E, Register::D);
+//         case 0x5B: return execute_ld_r8_r8(debug_prefix, Register::E, Register::E);
+//         case 0x5C: return execute_ld_r8_r8(debug_prefix, Register::E, Register::H);
+//         case 0x5D: return execute_ld_r8_r8(debug_prefix, Register::E, Register::L);
+//         case 0x5F: return execute_ld_r8_r8(debug_prefix, Register::E, Register::A);
+//
+//         case 0x60: return execute_ld_r8_r8(debug_prefix, Register::H, Register::B);
+//         case 0x61: return execute_ld_r8_r8(debug_prefix, Register::H, Register::C);
+//         case 0x62: return execute_ld_r8_r8(debug_prefix, Register::H, Register::D);
+//         case 0x63: return execute_ld_r8_r8(debug_prefix, Register::H, Register::E);
+//         case 0x64: return execute_ld_r8_r8(debug_prefix, Register::H, Register::H);
+//         case 0x65: return execute_ld_r8_r8(debug_prefix, Register::H, Register::L);
+//         case 0x67: return execute_ld_r8_r8(debug_prefix, Register::H, Register::A);
+//
+//         case 0x68: return execute_ld_r8_r8(debug_prefix, Register::L, Register::B);
+//         case 0x69: return execute_ld_r8_r8(debug_prefix, Register::L, Register::C);
+//         case 0x6A: return execute_ld_r8_r8(debug_prefix, Register::L, Register::D);
+//         case 0x6B: return execute_ld_r8_r8(debug_prefix, Register::L, Register::E);
+//         case 0x6C: return execute_ld_r8_r8(debug_prefix, Register::L, Register::H);
+//         case 0x6D: return execute_ld_r8_r8(debug_prefix, Register::L, Register::L);
+//         case 0x6F: return execute_ld_r8_r8(debug_prefix, Register::L, Register::A);
+//
+//         case 0x78: return execute_ld_r8_r8(debug_prefix, Register::A, Register::B);
+//         case 0x79: return execute_ld_r8_r8(debug_prefix, Register::A, Register::C);
+//         case 0x7A: return execute_ld_r8_r8(debug_prefix, Register::A, Register::D);
+//         case 0x7B: return execute_ld_r8_r8(debug_prefix, Register::A, Register::E);
+//         case 0x7C: return execute_ld_r8_r8(debug_prefix, Register::A, Register::H);
+//         case 0x7D: return execute_ld_r8_r8(debug_prefix, Register::A, Register::L);
+//         case 0x7F: return execute_ld_r8_r8(debug_prefix, Register::A, Register::A);
+//
+//         // LD (HL+), A
+//         case 0x22: {
+//             // Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
+//             The
+//             // value of HL is incremented after the memory write.
+//             //
+//             // Cycles: 2
+//             // Flags: - - - -
+//             spdlog::info(fmt::format("{} LD (HL+), A ", debug_prefix));
+//             const auto HL = m_registers.get_HL();
+//             m_emulator.m_bus.write_u8(HL, m_registers.a);
+//             m_registers.set_HL(HL + 1);
+//             return true;
+//         }
+//
+//         // LD (HL-), A
+//         case 0x32: {
+//             // Load to the absolute address specified by the 16-bit register HL, data from the 8-bit A register.
+//             The
+//             // value of HL is decremented after the memory write.
+//             //
+//             // Cycles: 2
+//             // Flags: - - - -
+//             spdlog::info(fmt::format("{} LD (HL-), A ", debug_prefix));
+//             const auto HL = m_registers.get_HL();
+//             m_emulator.m_bus.write_u8(HL, m_registers.a);
+//             m_registers.set_HL(HL - 1);
+//             return true;
+//         }
+//
+//         case 0xE0: {  // LDH (a8),A = LD (0xFF00 + a8),A
+//             const auto a8 = fetch_u8();
+//             const auto address = 0xFF00 + a8;
+//             spdlog::info(fmt::format("{} LDH ({:02x}), A = LD ({:04x}), A", debug_prefix, a8, address));
+//             execute_ld(address, Register::A);
+//             return true;
+//         }
+//
+//         case 0xEA: {  // LD (a16),A
+//             const auto address = fetch_u16();
+//             spdlog::info(fmt::format("{} LDH ({:04x}), A", debug_prefix, address));
+//             execute_ld(address, Register::A);
+//             return true;
+//         }
+//
+//         case 0xF0: {  // LDH A,(a8) = LD A,(0xFF00 + a8)
+//             const auto a8 = fetch_u8();
+//             const auto address = 0xFF00 + a8;
+//             spdlog::info(fmt::format("{} LDH A, ({:02x}) = LD A, ({:04x})", debug_prefix, a8, address));
+//             execute_ld(Register::A, address);
+//             return true;
+//         }
+//
+//         case 0xFA: {  // LD A,(a16)
+//             const auto address = fetch_u16();
+//             spdlog::info(fmt::format("{} LD A, ({:04x})", debug_prefix, address));
+//             execute_ld(Register::A, address);
+//             return true;
+//         }
+//
+//         default: return false;
+//     }
+// }
+//
+// bool Cpu::execute_ld_d(const std::string &debug_prefix, const Register reg) {
+//     if (is_16bit(reg)) {
+//         const auto d16 = fetch_u16();
+//         spdlog::info(fmt::format("{} LD {}, {:04x}", debug_prefix, magic_enum::enum_name(reg), d16));
+//         m_registers.set_u16(reg, d16);
+//
+//     } else {
+//         const auto d8 = fetch_u8();
+//         spdlog::info(fmt::format("{} LD {}, {:02x}", debug_prefix, magic_enum::enum_name(reg), d8));
+//         m_registers.set_u8(reg, d8);
+//     }
+//
+//     return true;
+// }
+//
+// void Cpu::execute_ld(const u16 address, const Register reg) {
+//     if (is_16bit(reg)) {
+//         m_emulator.m_bus.write_u16(address, m_registers.get_u16(reg));
+//     } else {
+//         m_emulator.m_bus.write_u8(address, m_registers.get_u8(reg));
+//     }
+// }
+//
+// void Cpu::execute_ld(const Register reg, const u16 address) {
+//     if (is_16bit(reg)) {
+//         const auto data = m_emulator.m_bus.read_u16(address);
+//         m_registers.set_u16(reg, data);
+//     } else {
+//         const auto data = m_emulator.m_bus.read_u8(address);
+//         m_registers.set_u8(reg, data);
+//     }
+// }
+//
+// bool Cpu::execute_ld_r8_r8(const std::string &debug_prefix, const Register reg1, const Register reg2) {
+//     spdlog::info(fmt::format("{} LD {}, {}", debug_prefix, magic_enum::enum_name(reg1),
+//     magic_enum::enum_name(reg2))); m_registers.set_u8(reg1, m_registers.get_u8(reg2)); return true;
+// }
+//
+// bool Cpu::execute_inc(const std::string &debug_prefix, u8 opcode) {
+//     switch (opcode) {
+//         // INC R
+//         case 0x04: return execute_inc_r8(debug_prefix, Register::B);
+//         case 0x14: return execute_inc_r8(debug_prefix, Register::C);
+//         case 0x24: return execute_inc_r8(debug_prefix, Register::H);
+//         case 0x0C: return execute_inc_r8(debug_prefix, Register::C);
+//         case 0x1C: return execute_inc_r8(debug_prefix, Register::E);
+//         case 0x2C: return execute_inc_r8(debug_prefix, Register::L);
+//         case 0x3C: return execute_inc_r8(debug_prefix, Register::A);
+//
+//         // INC RR
+//         case 0x03: return execute_inc_r8(debug_prefix, Register::BC);
+//         case 0x13: return execute_inc_r8(debug_prefix, Register::DE);
+//         case 0x23: return execute_inc_r8(debug_prefix, Register::HL);
+//         case 0x33: return execute_inc_r8(debug_prefix, Register::SP);
+//
+//         // INC [HL]
+//         case 0x34: throw std::runtime_error("INC (HL)");
+//
+//         default: return false;
+//     }
+// }
+//
+// bool Cpu::execute_inc_r8(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     const u8 old_value = m_registers.get_u8(reg);
+//     const u8 new_value = old_value + 1;
+//
+//     m_registers.set_z(new_value == 0);
+//     m_registers.set_n(false);
+//     m_registers.set_h(new_value & 0x0F == 0);
+//
+//     m_registers.set_u8(reg, new_value);
+//     return true;
+// }
+//
+// bool Cpu::execute_inc_r16(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} INC {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     const u16 old_value = m_registers.get_u16(reg);
+//     const u16 new_value = old_value + 1;
+//
+//     m_registers.set_u16(reg, new_value);
+//
+//     // 16-bit operations take 1 extra cycle and don't modify flags
+//     m_emulator.add_cycles(1);
+//     return true;
+// }
+//
+// bool Cpu::execute_dec(const std::string &debug_prefix, u8 opcode) {
+//     switch (opcode) {
+//         // INC R
+//         case 0x05: return execute_dec_r8(debug_prefix, Register::B);
+//         case 0x15: return execute_dec_r8(debug_prefix, Register::C);
+//         case 0x25: return execute_dec_r8(debug_prefix, Register::H);
+//         case 0x0D: return execute_dec_r8(debug_prefix, Register::C);
+//         case 0x1D: return execute_dec_r8(debug_prefix, Register::E);
+//         case 0x2D: return execute_dec_r8(debug_prefix, Register::L);
+//         case 0x3D: return execute_dec_r8(debug_prefix, Register::A);
+//
+//         // INC RR
+//         case 0x0B: return execute_dec_r8(debug_prefix, Register::BC);
+//         case 0x1B: return execute_dec_r8(debug_prefix, Register::DE);
+//         case 0x2B: return execute_dec_r8(debug_prefix, Register::HL);
+//         case 0x3B: return execute_dec_r8(debug_prefix, Register::SP);
+//
+//         // INC [HL]
+//         case 0x35: throw std::runtime_error("DEC (HL)");
+//
+//         default: return false;
+//     }
+// }
+//
+// bool Cpu::execute_dec_r8(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     const u8 old_value = m_registers.get_u8(reg);
+//     const u8 new_value = old_value - 1;
+//
+//     m_registers.set_z(new_value == 0);
+//     m_registers.set_n(true);
+//     m_registers.set_h(new_value & 0x0F == 0);
+//
+//     m_registers.set_u8(reg, new_value);
+//     return true;
+// }
+//
+// bool Cpu::execute_dec_r16(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} DEC {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     const u16 old_value = m_registers.get_u16(reg);
+//     const u16 new_value = old_value - 1;
+//
+//     m_registers.set_u16(reg, new_value);
+//
+//     // 16-bit operations take 1 extra cycle and don't modify flags
+//     m_emulator.add_cycles(1);
+//     return true;
+// }
+//
+// bool Cpu::execute_xor(const std::string &debug_prefix, u8 opcode) {
+//     switch (opcode) {
+//         case 0xA8: execute_xor_reg(debug_prefix, Register::B); return true;
+//         case 0xA9: execute_xor_reg(debug_prefix, Register::C); return true;
+//         case 0xAA: execute_xor_reg(debug_prefix, Register::D); return true;
+//         case 0xAB: execute_xor_reg(debug_prefix, Register::E); return true;
+//         case 0xAC: execute_xor_reg(debug_prefix, Register::H); return true;
+//         case 0xAD: execute_xor_reg(debug_prefix, Register::L); return true;
+//         case 0xAF: execute_xor_reg(debug_prefix, Register::A); return true;
+//         default: return false;
+//     }
+// }
+//
+// void Cpu::execute_xor_reg(const std::string &debug_prefix, const Register input_reg) {
+//     spdlog::info(fmt::format("{} XOR {}", debug_prefix, magic_enum::enum_name(input_reg)));
+//
+//     const auto data = m_registers.get_u8(input_reg);
+//     m_registers.a ^= data;
+//     m_registers.set_z(m_registers.a == 0);
+// }
+//
+// bool Cpu::execute_cp(const std::string &debug_prefix, u8 opcode) {
+//     switch (opcode) {
+//         case 0xFE: execute_cp(debug_prefix, Register::B); return true;
+//     }
+//
+//     return false;
+// }
+//
+// // CP r: Compare (register)
+// //
+// // Subtracts from the 8-bit A register, the 8-bit register r, and updates flags based on the result.
+// // This instruction is basically identical to SUB r, but does not update the A register
+// //
+// // opcode = read_memory(addr=PC); PC = PC + 1
+// // if opcode == 0xB8: # example: CP B
+// //     result, carry_per_bit = A - B
+// //     flags.Z = 1 if result == 0 else 0
+// //     flags.N = 1
+// //     flags.H = 1 if carry_per_bit[3] else 0
+// //     flags.C = 1 if carry_per_bit[7] else 0
+// void Cpu::execute_cp(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} CP {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     const auto a = static_cast<int>(m_registers.a);
+//     const auto r = static_cast<int>(m_registers.get_u8(reg));
+//     const auto result = a - r;
+//     const auto half_result = (a & 0x0F) - (r & 0x0F);
+//
+//     m_registers.set_z(result == 0);
+//     m_registers.set_n(true);
+//     m_registers.set_h(half_result < 0);
+//     m_registers.set_c(result < 0);
+// }
+//
+// bool Cpu::execute_and(const std::string &debug_prefix, const u8 opcode) {
+//     switch (opcode) {
+//         case 0xA0: return execute_and(debug_prefix, Register::B);
+//         case 0xA1: return execute_and(debug_prefix, Register::C);
+//         case 0xA2: return execute_and(debug_prefix, Register::D);
+//         case 0xA3: return execute_and(debug_prefix, Register::E);
+//         case 0xA4: return execute_and(debug_prefix, Register::H);
+//         case 0xA5: return execute_and(debug_prefix, Register::L);
+//         case 0xA6: return execute_and(debug_prefix, Register::HL);
+//         case 0xA7: return execute_and(debug_prefix, Register::A);
+//         default: return false;
+//     }
+// }
+//
+// // Performs a bitwise AND operation between the 8-bit A register and the 8-bit register r, and stores the result
+// back
+// // into the A register.
+// bool Cpu::execute_and(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} AND A, {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     if (reg == Register::HL) {
+//         throw std::runtime_error("TODO: AND A, HL");
+//     }
+//
+//     if (is_16bit(reg)) {
+//         throw std::invalid_argument("reg");
+//     }
+//
+//     m_registers.a = m_registers.a & m_registers.get_u8(reg);
+//     m_registers.set_z(m_registers.a == 0);
+//     m_registers.set_n(false);
+//     m_registers.set_h(true);
+//     m_registers.set_c(false);
+//
+//     return true;
+// }
+//
+// bool Cpu::execute_sub(const std::string &debug_prefix, const u8 opcode) {
+//     switch (opcode) {
+//         case 0x90: return execute_sub(debug_prefix, Register::B);
+//         case 0x91: return execute_sub(debug_prefix, Register::C);
+//         case 0x92: return execute_sub(debug_prefix, Register::D);
+//         case 0x93: return execute_sub(debug_prefix, Register::E);
+//         case 0x94: return execute_sub(debug_prefix, Register::H);
+//         case 0x95: return execute_sub(debug_prefix, Register::L);
+//         case 0x96: return execute_sub(debug_prefix, Register::HL);
+//         case 0x97: return execute_sub(debug_prefix, Register::A);
+//         default: return false;
+//     }
+// }
+//
+// // Subtracts from the 8-bit A register, the 8-bit register r, and stores the result back into the A register
+// bool Cpu::execute_sub(const std::string &debug_prefix, const Register reg) {
+//     spdlog::info(fmt::format("{} SUB A, {}", debug_prefix, magic_enum::enum_name(reg)));
+//
+//     if (reg == Register::HL) {
+//         throw std::runtime_error("TODO: SUB A, HL");
+//     }
+//     const auto a = static_cast<int>(m_registers.a);
+//     const auto r = static_cast<int>(m_registers.get_u8(reg));
+//     const auto result = a - r;
+//     const auto half_result = (a & 0x0F) - (r & 0x0F);
+//
+//     m_registers.set_z(result == 0);
+//     m_registers.set_n(true);
+//     m_registers.set_h(half_result < 0);
+//     m_registers.set_c(result < 0);
+//
+//     m_registers.a = result;
+//     return true;
+// }
+//
+
+//
+// bool Cpu::execute_call(const std::string &debug_prefix, const u8 opcode) {
+//     switch (opcode) {
+//         case 0xC4: return execute_call(debug_prefix, NZ);
+//         case 0xD4: return execute_call(debug_prefix, NC);
+//         case 0xCC: return execute_call(debug_prefix, Z);
+//         case 0xDC: return execute_call(debug_prefix, C);
+//         case 0xCD: return execute_call(debug_prefix, None);
+//
+//         default: return false;
+//     }
+// }
+//
+// bool Cpu::execute_call(const std::string &debug_prefix, const Condition condition) {
+//     const auto address = fetch_u16();
+//     if (condition == None) {
+//         spdlog::info(fmt::format("{} CALL {:04x}", debug_prefix, address));
+//     } else {
+//         spdlog::info(fmt::format("{} CALL {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
+//     }
+//
+//     if (m_registers.check_flags(condition)) {
+//         stack_push16(m_registers.pc);
+//         m_registers.pc = address;
+//         m_emulator.add_cycles();
+//     }
+//
+//     return true;
+// }
+
+std::string Cpu::to_string(const OperandDescription &op) const {
+    if (op.m_type == OperandType::Register) {
+        if (op.m_register_is_indirect) {
+            return fmt::format("[{}]", magic_enum::enum_name(op.m_register.value()));
+        }
+        return std::string{magic_enum::enum_name(op.m_register.value())};
+    }
+
+    switch (op.m_type) {
+        case OperandType::None: return "-";
+        case OperandType::Data8u: return fmt::format("{:02x}", peek_u8());
+        case OperandType::Data8s: return fmt::format("{:+d}", static_cast<s8>(peek_u8()));
+        case OperandType::Data16: return fmt::format("{:04x}", peek_u16());
+        case OperandType::Address8: return fmt::format("({:04x})", 0xFF00 + peek_u8());
+        case OperandType::Address16: return fmt::format("({:04x})", peek_u16());
+        case OperandType::RelativeAddress8pc: return fmt::format("(IP{:+d})", static_cast<s8>(peek_u8()));
+        case OperandType::RelativeAddress8sp: return fmt::format("(SP{:+d})", static_cast<s8>(peek_u8()));
+        case OperandType::HLI: return "[HL+]";
+        case OperandType::HLD: return "[HL-]";
+        default: throw NotImplementedError();
     }
 }
 
-bool Cpu::execute_jp_a16(const std::string &debug_prefix, const Condition condition) {
-    const auto address = fetch_u16();
-    if (condition == None) {
-        spdlog::info(fmt::format("{} JP {:04x}", debug_prefix, address));
+u16 Cpu::decode_address(const OperandDescription &op) {
+    switch (op.m_type) {
+        case OperandType::Register: {
+            const auto reg = op.m_register.value();
+            if (is_16bit(op.m_register.value())) {
+                return m_registers.get_u16(reg);
+            }
+
+            // e.g. LD [C], A
+            return 0xFF00 + m_registers.get_u8(reg);
+        }
+        case OperandType::Address8: return 0xFF00 + fetch_u8();
+        case OperandType::Address16: return fetch_u16();
+        case OperandType::RelativeAddress8pc: return m_registers.pc + static_cast<s8>(fetch_u8());
+        case OperandType::RelativeAddress8sp: return m_registers.sp + static_cast<s8>(fetch_u8());
+        case OperandType::HLI: {
+            const auto hl = m_registers.get_u16(Register::HL);
+            m_registers.set_u16(Register::HL, hl + 1);
+            return hl;
+        }
+        case OperandType::HLD: {
+            const auto hl = m_registers.get_u16(Register::HL);
+            m_registers.set_u16(Register::HL, hl - 1);
+            return hl;
+        }
+        default: throw NotImplementedError();
+    }
+}
+
+u8 Cpu::decode_u8(const OperandDescription &op) {
+    if (is_address(op)) {
+        const auto address = decode_address(op);
+        return m_emulator.m_bus.read_u8(address);
+    }
+
+    switch (op.m_type) {
+        case OperandType::Register: return m_registers.get_u8(op.m_register.value());
+        case OperandType::Data8u: return fetch_u8();
+        case OperandType::HLI: {
+            const auto hl = m_registers.get_u16(Register::HL);
+            const auto data = m_emulator.m_bus.read_u8(hl);
+            m_registers.set_u16(Register::HL, hl + 1);
+            return data;
+        }
+        case OperandType::HLD: {
+            const auto hl = m_registers.get_u16(Register::HL);
+            const auto data = m_emulator.m_bus.read_u8(hl);
+            m_registers.set_u16(Register::HL, hl - 1);
+            return data;
+        }
+        default: throw NotImplementedError();
+    }
+}
+
+u16 Cpu::decode_u16(const OperandDescription &op) {
+    if (is_address(op)) {
+        const auto address = decode_address(op);
+        return m_emulator.m_bus.read_u16(address);
+    }
+
+    switch (op.m_type) {
+        case OperandType::Register: return m_registers.get_u16(op.m_register.value());
+        case OperandType::Data16: return fetch_u16();
+        default: throw UnexpectedError();
+    }
+}
+
+void Cpu::write_register_u8(const Register reg, const u8 value) {
+    if (reg == Register::HL) {
+        const auto address = m_registers.get_u8(Register::HL);
+        m_emulator.m_bus.write_u8(address, value);
     } else {
-        spdlog::info(fmt::format("{} JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
+        m_registers.set_u8(reg, value);
     }
-
-    return execute_jp(condition, address);
-}
-
-bool Cpu::execute_jr_e8(const std::string &debug_prefix, const Condition condition) {
-    const auto rel = static_cast<s8>(fetch_u8());
-    const auto address = m_registers.pc + rel;
-    if (condition == None) {
-        spdlog::info(fmt::format("{} JR {} = JP {:04x}", debug_prefix, rel, address));
-    } else {
-        spdlog::info(fmt::format("{} JR {}, {} = JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), rel,
-                                 magic_enum::enum_name(condition), address));
-    }
-
-    return execute_jp(condition, address);
-}
-
-bool Cpu::execute_jp(const Condition condition, const u16 address) {
-    if (m_registers.check_flags(condition)) {
-        m_registers.pc = address;
-        m_emulator.add_cycles();
-    }
-    return true;
-}
-
-bool Cpu::execute_call(const std::string &debug_prefix, const u8 opcode) {
-    switch (opcode) {
-        case 0xC4: return execute_call(debug_prefix, NZ);
-        case 0xD4: return execute_call(debug_prefix, NC);
-        case 0xCC: return execute_call(debug_prefix, Z);
-        case 0xDC: return execute_call(debug_prefix, C);
-        case 0xCD: return execute_call(debug_prefix, None);
-
-        default: return false;
-    }
-}
-
-bool Cpu::execute_call(const std::string &debug_prefix, const Condition condition) {
-    const auto address = fetch_u16();
-    if (condition == None) {
-        spdlog::info(fmt::format("{} CALL {:04x}", debug_prefix, address));
-    } else {
-        spdlog::info(fmt::format("{} CALL {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
-    }
-
-    if (m_registers.check_flags(condition)) {
-        stack_push16(m_registers.pc);
-        m_registers.pc = address;
-        m_emulator.add_cycles();
-    }
-
-    return true;
 }
