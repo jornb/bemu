@@ -991,8 +991,8 @@ void Cpu::execute_jp(const std::string &dbg, const CpuInstruction &instruction) 
         spdlog::info(fmt::format("{} {} {}", dbg, jump_type_str, to_string(instruction.m_op1)));
     }
 
+    const auto address = decode_address(instruction.m_op1);
     if (m_registers.check_flags(instruction.m_condition)) {
-        const auto address = decode_address(instruction.m_op1);
         m_registers.pc = address;
         m_emulator.add_cycles();
     }
@@ -1006,9 +1006,9 @@ void Cpu::execute_call(const std::string &dbg, const CpuInstruction &instruction
                                  to_string(instruction.m_op1)));
     }
 
+    const auto address = decode_address(instruction.m_op1);
     if (m_registers.check_flags(instruction.m_condition)) {
         stack_push16(m_registers.pc);
-        const auto address = decode_address(instruction.m_op1);
         m_registers.pc = address;
         m_emulator.add_cycles();
     }
@@ -1106,7 +1106,10 @@ void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) 
     m_registers.set_c(old_value & 0x80);
 }
 
-void Cpu::execute_push(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+void Cpu::execute_push(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info(fmt::format("{} PUSH {}", dbg, to_string(instruction.m_op1)));
+    stack_push16(decode_u16(instruction.m_op1));
+}
 
 void Cpu::execute_pop(const std::string &dbg, const CpuInstruction &instruction) {
     spdlog::info(fmt::format("{} POP {}", dbg, to_string(instruction.m_op1)));
@@ -1650,8 +1653,14 @@ u16 Cpu::decode_address(const OperandDescription &op) {
         }
         case OperandType::Address8: return 0xFF00 + fetch_u8();
         case OperandType::Address16: return fetch_u16();
-        case OperandType::RelativeAddress8pc: return m_registers.pc + static_cast<s8>(fetch_u8());
-        case OperandType::RelativeAddress8sp: return m_registers.sp + static_cast<s8>(fetch_u8());
+        case OperandType::RelativeAddress8pc: {
+            const auto offset = static_cast<s8>(fetch_u8());
+            return m_registers.pc + offset;
+        }
+        case OperandType::RelativeAddress8sp: {
+            const auto offset = static_cast<s8>(fetch_u8());
+            return m_registers.sp + offset;
+        }
         case OperandType::HLI: {
             const auto hl = m_registers.get_u16(Register::HL);
             m_registers.set_u16(Register::HL, hl + 1);

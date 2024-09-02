@@ -30,17 +30,8 @@ Cartridge Cartridge::from_file(const std::string& filename) {
     return cartridge;
 }
 
-u8 Cartridge::read(const u16 address) const {
-    if (address >= m_data.size()) {
-        throw std::runtime_error(fmt::format("Address {} too large", address));
-    }
-    return m_data[address];
-}
+bool Cartridge::contains(const u16 address) const { return address < 0x7FFF; }
 
-void Cartridge::write(const u16 address, const u8 value) {
-    if (address >= m_data.size()) {
-        throw std::runtime_error(fmt::format("Address {} too large", address));
-    }
+u8 Cartridge::read(const u16 address) const { return m_data.at(address); }
 
-    m_data[address] = value;
-}
+void Cartridge::write(const u16 address, const u8 value) { m_data.at(address) = value; }

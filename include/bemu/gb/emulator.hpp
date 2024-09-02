@@ -3,13 +3,13 @@
 #include "cartridge.hpp"
 #include "cpu.hpp"
 #include "emulator.hpp"
+#include "ppu.hpp"
 
 namespace bemu::gb {
 struct Emulator {
     Cartridge m_cartridge;
     Bus m_bus{*this};
     Cpu m_cpu{*this};
-
 
     bool m_paused = false;
     bool m_running = true;

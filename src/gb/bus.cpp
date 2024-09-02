@@ -25,6 +25,10 @@ using namespace bemu::gb;
 u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (add_cycles) m_emulator.add_cycles();
 
+    if (m_emulator.m_cartridge.contains(address)) {
+        return m_emulator.m_cartridge.read(address);
+    }
+
     if (m_wram.contains(address)) {
         return m_wram.read(address);
     }
@@ -33,10 +37,14 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         return m_hram.read(address);
     }
 
-    if (address < 0x8000) {
-        // ROM
-        return m_emulator.m_cartridge.read(address);
+    if (m_ppu.contains(address)) {
+        return m_ppu.read(address);
     }
+
+    if (m_audio.contains(address)) {
+        return m_audio.read(address);
+    }
+
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return m_io.read(address);
     }
@@ -64,6 +72,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
 void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
     if (add_cycles) m_emulator.add_cycles();
 
+    if (m_emulator.m_cartridge.contains(address)) {
+        return m_emulator.m_cartridge.write(address, value);
+    }
+
     if (m_wram.contains(address)) {
         return m_wram.write(address, value);
     }
@@ -72,10 +84,14 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
         return m_hram.write(address, value);
     }
 
-    if (address < 0x8000) {
-        // ROM
-        m_emulator.m_cartridge.write(address, value);
+    if (m_ppu.contains(address)) {
+        return m_ppu.write(address, value);
     }
+
+    if (m_audio.contains(address)) {
+        return m_audio.write(address, value);
+    }
+
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return m_io.write(address, value);
     }

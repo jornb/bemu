@@ -146,6 +146,7 @@ struct Cartridge {
 
     [[nodiscard]] const CartridgeHeader& header() const;
 
+    bool contains(u16 address) const;
     [[nodiscard]] u8 read(u16 address) const;
     void write(u16 address, u8 value);
 

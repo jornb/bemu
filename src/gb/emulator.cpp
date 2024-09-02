@@ -19,4 +19,14 @@ void Emulator::run() {
     }
 }
 
-void Emulator::add_cycles(const u16 cycles) { m_ticks += 4 * cycles; }
+void Emulator::add_cycles(const u16 cycles) {
+    // PPU has 4 dots per M-cycle
+    for (int m=0; m<cycles; m++) {
+        for (int d=0; d<4; d++) {
+            ++m_ticks;
+            m_bus.m_ppu.dot_tick();
+        }
+
+        m_bus.m_ppu.cycle_tick();
+    }
+}
