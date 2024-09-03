@@ -55,6 +55,8 @@ struct OperandDescription {
     u8 m_parameter;
 };
 
+bool is_16bit(OperandDescription reg);
+
 struct Cpu;
 struct CpuInstruction;
 

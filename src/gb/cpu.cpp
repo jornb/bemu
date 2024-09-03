@@ -140,6 +140,10 @@ bool is_address(const OperandDescription t) {
 
 // }  // namespace
 
+bool bemu::gb::is_16bit(const OperandDescription t) {
+    return t.m_type == OperandType::Data16 || (t.m_type == OperandType::Register && is_16bit(t.m_register.value()));
+}
+
 bool CpuRegisters::get_z() const { return get_bit(f, 7); }
 bool CpuRegisters::get_n() const { return get_bit(f, 6); }
 bool CpuRegisters::get_h() const { return get_bit(f, 5); }
@@ -449,14 +453,14 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0xAF] = {&execute_xor, Register::A};
 
     // m_instruction_handlers - 0xBX
-    m_instruction_handlers[0xB0] = {&execute_or, Register::A, Register::B};
-    m_instruction_handlers[0xB1] = {&execute_or, Register::A, Register::C};
-    m_instruction_handlers[0xB2] = {&execute_or, Register::A, Register::D};
-    m_instruction_handlers[0xB3] = {&execute_or, Register::A, Register::E};
-    m_instruction_handlers[0xB4] = {&execute_or, Register::A, Register::H};
-    m_instruction_handlers[0xB5] = {&execute_or, Register::A, Register::L};
-    m_instruction_handlers[0xB6] = {&execute_or, Register::A, indirect(Register::HL)};
-    m_instruction_handlers[0xB7] = {&execute_or, Register::A, Register::A};
+    m_instruction_handlers[0xB0] = {&execute_or, Register::B};
+    m_instruction_handlers[0xB1] = {&execute_or, Register::C};
+    m_instruction_handlers[0xB2] = {&execute_or, Register::D};
+    m_instruction_handlers[0xB3] = {&execute_or, Register::E};
+    m_instruction_handlers[0xB4] = {&execute_or, Register::H};
+    m_instruction_handlers[0xB5] = {&execute_or, Register::L};
+    m_instruction_handlers[0xB6] = {&execute_or, indirect(Register::HL)};
+    m_instruction_handlers[0xB7] = {&execute_or, Register::A};
     m_instruction_handlers[0xB8] = {&execute_cp, Register::B};
     m_instruction_handlers[0xB9] = {&execute_cp, Register::C};
     m_instruction_handlers[0xBA] = {&execute_cp, Register::D};
@@ -517,7 +521,7 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0xF2] = {&execute_ld, Register::A, indirect(Register::C)};
     m_instruction_handlers[0xF3] = {&execute_di};
     m_instruction_handlers[0xF5] = {&execute_push, Register::AF};
-    m_instruction_handlers[0xF6] = {&execute_or, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xF6] = {&execute_or, OperandType::Data8u};
     m_instruction_handlers[0xF7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x30};
     m_instruction_handlers[0xF8] = {&execute_ld, Register::HL, OperandType::RelativeAddress8sp};
     m_instruction_handlers[0xF9] = {&execute_ld, Register::SP, Register::HL};
@@ -770,9 +774,15 @@ void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) 
 
     if (is_address(instruction.m_op1)) {
         // Load into address
-        const auto address = decode_address(instruction.m_op1);
-        const auto value = decode_u8(instruction.m_op2);
-        m_emulator.m_bus.write_u8(address, value);
+        if (is_16bit(instruction.m_op2)) {
+            const auto address = decode_address(instruction.m_op1);
+            const auto value = decode_u16(instruction.m_op2);
+            m_emulator.m_bus.write_u16(address, value);
+        } else {
+            const auto address = decode_address(instruction.m_op1);
+            const auto value = decode_u8(instruction.m_op2);
+            m_emulator.m_bus.write_u8(address, value);
+        }
     } else if (is_16bit(instruction.m_op1.m_register.value())) {
         // Load into 16-bit register
         const auto value = decode_u16(instruction.m_op2);
@@ -862,7 +872,7 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
 
         m_registers.set_z(new_value == 0);
         m_registers.set_n(true);
-        m_registers.set_h(new_value_int & 0xF == 0);
+        m_registers.set_h((new_value_int & 0xF) == 0xF);
     }
 }
 
