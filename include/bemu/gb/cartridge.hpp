@@ -1,8 +1,10 @@
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
+#include "ram.hpp"
 #include "types.hpp"
 
 namespace bemu::gb {
@@ -152,6 +154,9 @@ struct Cartridge {
 
 private:
     std::vector<u8> m_data;
+
+    bool m_ram_enabled = true;
+    std::array<RAM<0xA000, 0xBFFF>, 16> m_external_ram_banks{};
 };
 
 }  // namespace bemu::gb

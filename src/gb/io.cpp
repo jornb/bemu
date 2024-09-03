@@ -3,6 +3,9 @@
 #include <bemu/gb/io.hpp>
 #include <stdexcept>
 
+#include "spdlog/spdlog.h"
+#include <spdlog/spdlog.h>
+
 using namespace bemu::gb;
 
 u8 Io::read(u16 address) const {
@@ -28,7 +31,11 @@ u8 Io::read(u16 address) const {
         return lcd_ptr[address - 0xFF40];
     }
 
-    throw std::runtime_error(fmt::format("Unsupported read to I/O address {:04x}", address));
+    spdlog::warn("Unsupported read to I/O address {:04x}", address);
+    return 0x00;
+
+
+    // throw std::runtime_error(fmt::format("Unsupported read to I/O address {:04x}", address));
 }
 
 void Io::write(u16 address, const u8 value) {
@@ -58,5 +65,6 @@ void Io::write(u16 address, const u8 value) {
         return;
     }
 
-    throw std::runtime_error(fmt::format("Unsupported write to I/O address {:04x}", address));
+    spdlog::warn("Unsupported write to I/O address {:04x} = {:02x}", address, value);
+    // throw std::runtime_error(fmt::format("Unsupported write to I/O address {:04x}", address));
 }

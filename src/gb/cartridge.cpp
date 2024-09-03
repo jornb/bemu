@@ -30,8 +30,32 @@ Cartridge Cartridge::from_file(const std::string& filename) {
     return cartridge;
 }
 
-bool Cartridge::contains(const u16 address) const { return address < 0x7FFF; }
+bool Cartridge::contains(const u16 address) const {
+    return address <= 0x7FFF || m_external_ram_banks[0].contains(address);
+}
 
-u8 Cartridge::read(const u16 address) const { return m_data.at(address); }
+u8 Cartridge::read(const u16 address) const {
+    // TODO: Implement bank switching
+    if (m_external_ram_banks[0].contains(address)) {
+        if (m_ram_enabled) {
+            return m_external_ram_banks[0].read(address);
+        }
+        return 0xFF;
+    }
 
-void Cartridge::write(const u16 address, const u8 value) { m_data.at(address) = value; }
+    return m_data.at(address);
+}
+
+void Cartridge::write(const u16 address, const u8 value) {
+
+    // TODO: Implement bank switching
+    if (m_external_ram_banks[0].contains(address)) {
+        if (m_ram_enabled) {
+            m_external_ram_banks[0].write(address, value);
+        }
+
+        return;
+    }
+
+    m_data.at(address) = value;
+}
