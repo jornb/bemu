@@ -153,6 +153,13 @@ void CpuRegisters::set_n(const bool n) { set_bit(f, 6, n); }
 void CpuRegisters::set_h(const bool h) { set_bit(f, 5, h); }
 void CpuRegisters::set_c(const bool c) { set_bit(f, 4, c); }
 
+void CpuRegisters::set_flags(const bool z, const bool n, const bool h, const bool c) {
+    set_z(z);
+    set_n(n);
+    set_h(h);
+    set_c(c);
+}
+
 bool CpuRegisters::check_flags(const Condition condition) const {
     switch (condition) {
         case Condition::Z: return get_z();
@@ -547,9 +554,9 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     add_octet(0020, &execute_rl);
     add_octet(0030, &execute_rr);
     add_octet(0040, &execute_sla);
-    // add_octet(0050, &execute_sra);
-    // add_octet(0060, &execute_swap);
-    // add_octet(0070, &execute_srl);
+    add_octet(0050, &execute_sra);
+    add_octet(0060, &execute_swap);
+    add_octet(0070, &execute_srl);
     add_octet(0100, &execute_bit, 0);
     add_octet(0110, &execute_bit, 1);
     add_octet(0120, &execute_bit, 2);
@@ -643,6 +650,15 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
+    // Render
+    {
+        RenderTarget<8, 8> render;
+        render.render_tile(m_emulator.m_bus, 0x8000, 0, 0);
+        for (u8 i = 0; i < render.screen_height; ++i) {
+            spdlog::info("{:02x}", fmt::join(render.m_pixels.at(i), " "));
+        }
+    }
+
     std::string prefix =
         !spdlog::should_log(spdlog::level::info)
             ? ""
@@ -663,9 +679,20 @@ void Cpu::execute_next_instruction() {
         spdlog::debug("Tracepoint: {}", prefix);
     }
 
-    if (pc == 0x05de) {
-        spdlog::debug("Tracepoint. Copying sprite tile (81?) {}", prefix);
+    if (pc == 0x021f) {
+        spdlog::debug("Tracepoint: {}", prefix);
+    }
 
+    if (pc == 0x0293) {
+        spdlog::debug("Tracepoint: {}", prefix);
+    }
+
+    if (pc == 0x0296) {
+        spdlog::debug("Tracepoint: {}", prefix);
+    }
+
+    if (pc == 0x47fa) {
+        spdlog::debug("Tracepoint: {}", prefix);
     }
 
     const auto *instruction_set = &m_instruction_handlers;
@@ -1099,6 +1126,16 @@ void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
 
+void Cpu::execute_sra(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    const u8 input = m_registers.get_u8(reg);
+    s8 value_i = static_cast<s8>(input);
+    value_i >>= 1;
+    const u8 value = static_cast<u8>(value_i);
+    m_registers.set_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, get_bit(input, 0));
+}
+
 void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction) {
     spdlog::info("{} SLA {}", dbg, to_string(instruction.m_op1));
 
@@ -1142,13 +1179,29 @@ void Cpu::execute_pop(const std::string &dbg, const CpuInstruction &instruction)
     m_registers.set_u16(instruction.m_op1.m_register.value(), data);
 }
 
-void Cpu::execute_scf(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+void Cpu::execute_scf(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} SCF", dbg);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(true);
+}
 
-void Cpu::execute_ccf(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+void Cpu::execute_ccf(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} CCF", dbg);
+    m_registers.set_n(false);
+    m_registers.set_h(false);
+    m_registers.set_c(!m_registers.get_c());
+}
 
-void Cpu::execute_cpl(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+void Cpu::execute_cpl(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} CPL", dbg);
+    m_registers.a = ~m_registers.a;
+    m_registers.set_n(true);
+}
 
-void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &instruction) {
+void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} DAA", dbg);
+
     if (m_registers.get_n()) {
         // Last instruction was a subtraction
         if (m_registers.get_c()) {

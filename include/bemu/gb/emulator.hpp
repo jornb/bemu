@@ -4,6 +4,7 @@
 #include "cpu.hpp"
 #include "emulator.hpp"
 #include "ppu.hpp"
+#include "screen.hpp"
 
 namespace bemu::gb {
 struct Emulator {

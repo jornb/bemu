@@ -100,6 +100,7 @@ struct CpuRegisters {
     void set_n(bool n);
     void set_h(bool h);
     void set_c(bool c);
+    void set_flags(bool z, bool n, bool h, bool c);
 
     [[nodiscard]] u16 get_HL() const { return get_u16(Register::HL); }
     void set_HL(const u16 value) { set_u16(Register::HL, value); }
@@ -216,6 +217,7 @@ struct Cpu {
     void execute_rlca(const std::string &dbg, const CpuInstruction &instruction);  ///< Rotate Left Circular A
     void execute_rl(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left
     void execute_rla(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left A
+    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Arithmetic
     void execute_sla(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Left Arithmetic
     void execute_push(const std::string &dbg, const CpuInstruction &instruction);  ///< Stack push
     void execute_pop(const std::string &dbg, const CpuInstruction &instruction);   ///< Stack pop
@@ -226,6 +228,10 @@ struct Cpu {
     void execute_bit(const std::string &dbg, const CpuInstruction &instruction);   ///< Test bit
     void execute_set(const std::string &dbg, const CpuInstruction &instruction);   ///< Set bit
     void execute_res(const std::string &dbg, const CpuInstruction &instruction);   ///< Clear bit
+
+    // add_octet(0050, &execute_sra);
+    // add_octet(0060, &execute_swap);
+    // add_octet(0070, &execute_srl);
 
     /// Disables interrupt handling by setting IME=0, and cancelling any scheduled effects of the EI instruction (if
     /// any)
