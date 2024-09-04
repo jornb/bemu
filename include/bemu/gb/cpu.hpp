@@ -209,16 +209,17 @@ struct Cpu {
     void execute_rst(const std::string &dbg, const CpuInstruction &instruction);   ///< Restart/call function
     void execute_ret(const std::string &dbg, const CpuInstruction &instruction);   ///< Return from function
     void execute_reti(const std::string &dbg, const CpuInstruction &instruction);  ///< Return from interrupt
+    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Arithmetic
+    void execute_srl(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Logical
     void execute_rrc(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right Circular
     void execute_rrca(const std::string &dbg, const CpuInstruction &instruction);  ///< Rotate Right Circular A
     void execute_rr(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right
     void execute_rra(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right A
+    void execute_sla(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Left Arithmetic
     void execute_rlc(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left Circular
     void execute_rlca(const std::string &dbg, const CpuInstruction &instruction);  ///< Rotate Left Circular A
     void execute_rl(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left
     void execute_rla(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left A
-    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Arithmetic
-    void execute_sla(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Left Arithmetic
     void execute_push(const std::string &dbg, const CpuInstruction &instruction);  ///< Stack push
     void execute_pop(const std::string &dbg, const CpuInstruction &instruction);   ///< Stack pop
     void execute_scf(const std::string &dbg, const CpuInstruction &instruction);   ///< Set carry flag
@@ -228,10 +229,7 @@ struct Cpu {
     void execute_bit(const std::string &dbg, const CpuInstruction &instruction);   ///< Test bit
     void execute_set(const std::string &dbg, const CpuInstruction &instruction);   ///< Set bit
     void execute_res(const std::string &dbg, const CpuInstruction &instruction);   ///< Clear bit
-
-    // add_octet(0050, &execute_sra);
-    // add_octet(0060, &execute_swap);
-    // add_octet(0070, &execute_srl);
+    void execute_swap(const std::string &dbg, const CpuInstruction &instruction);  ///< Swap nibbles
 
     /// Disables interrupt handling by setting IME=0, and cancelling any scheduled effects of the EI instruction (if
     /// any)
@@ -249,6 +247,9 @@ struct Cpu {
 
     /// Write register, but interpret HL as indirect
     void write_register_u8(Register reg, u8 value);
+
+    /// Read register, but interpret HL as indirect
+    [[nodiscard]] u8 read_register_u8(Register reg) const;
 
     std::array<CpuInstruction, 256> m_instruction_handlers;
     std::array<CpuInstruction, 256> m_instruction_handlers_cb;

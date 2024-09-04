@@ -414,24 +414,24 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0x85] = {&execute_add, Register::A, Register::L};
     m_instruction_handlers[0x86] = {&execute_add, Register::A, indirect(Register::HL)};
     m_instruction_handlers[0x87] = {&execute_add, Register::A, Register::A};
-    m_instruction_handlers[0x88] = {&execute_adc, Register::A, Register::B};
-    m_instruction_handlers[0x89] = {&execute_adc, Register::A, Register::C};
-    m_instruction_handlers[0x8A] = {&execute_adc, Register::A, Register::D};
-    m_instruction_handlers[0x8B] = {&execute_adc, Register::A, Register::E};
-    m_instruction_handlers[0x8C] = {&execute_adc, Register::A, Register::H};
-    m_instruction_handlers[0x8D] = {&execute_adc, Register::A, Register::L};
-    m_instruction_handlers[0x8E] = {&execute_adc, Register::A, indirect(Register::HL)};
-    m_instruction_handlers[0x8F] = {&execute_adc, Register::A, Register::A};
+    m_instruction_handlers[0x88] = {&execute_adc, Register::B};
+    m_instruction_handlers[0x89] = {&execute_adc, Register::C};
+    m_instruction_handlers[0x8A] = {&execute_adc, Register::D};
+    m_instruction_handlers[0x8B] = {&execute_adc, Register::E};
+    m_instruction_handlers[0x8C] = {&execute_adc, Register::H};
+    m_instruction_handlers[0x8D] = {&execute_adc, Register::L};
+    m_instruction_handlers[0x8E] = {&execute_adc, indirect(Register::HL)};
+    m_instruction_handlers[0x8F] = {&execute_adc, Register::A};
 
     // m_instruction_handlers - 0x9X
-    m_instruction_handlers[0x90] = {&execute_sub, Register::A, Register::B};
-    m_instruction_handlers[0x91] = {&execute_sub, Register::A, Register::C};
-    m_instruction_handlers[0x92] = {&execute_sub, Register::A, Register::D};
-    m_instruction_handlers[0x93] = {&execute_sub, Register::A, Register::E};
-    m_instruction_handlers[0x94] = {&execute_sub, Register::A, Register::H};
-    m_instruction_handlers[0x95] = {&execute_sub, Register::A, Register::L};
-    m_instruction_handlers[0x96] = {&execute_sub, Register::A, indirect(Register::HL)};
-    m_instruction_handlers[0x97] = {&execute_sub, Register::A, Register::A};
+    m_instruction_handlers[0x90] = {&execute_sub, Register::B};
+    m_instruction_handlers[0x91] = {&execute_sub, Register::C};
+    m_instruction_handlers[0x92] = {&execute_sub, Register::D};
+    m_instruction_handlers[0x93] = {&execute_sub, Register::E};
+    m_instruction_handlers[0x94] = {&execute_sub, Register::H};
+    m_instruction_handlers[0x95] = {&execute_sub, Register::L};
+    m_instruction_handlers[0x96] = {&execute_sub, indirect(Register::HL)};
+    m_instruction_handlers[0x97] = {&execute_sub, Register::A};
     m_instruction_handlers[0x98] = {&execute_sbc, Register::B};
     m_instruction_handlers[0x99] = {&execute_sbc, Register::C};
     m_instruction_handlers[0x9A] = {&execute_sbc, Register::D};
@@ -491,7 +491,7 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0xCA] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::Z};
     m_instruction_handlers[0xCC] = {&execute_call, OperandType::Address16, OperandType::None, Condition::Z};
     m_instruction_handlers[0xCD] = {&execute_call, OperandType::Address16};
-    m_instruction_handlers[0xCE] = {&execute_adc, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xCE] = {&execute_adc, OperandType::Data8u};
     m_instruction_handlers[0xCF] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x08};
 
     // m_instruction_handlers - 0xDX
@@ -500,7 +500,7 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0xD2] = {&execute_jp, OperandType::Address16, OperandType::None, Condition::NC};
     m_instruction_handlers[0xD4] = {&execute_call, OperandType::Address16, OperandType::None, Condition::NC};
     m_instruction_handlers[0xD5] = {&execute_push, Register::DE};
-    m_instruction_handlers[0xD6] = {&execute_sub, Register::A, OperandType::Data8u};
+    m_instruction_handlers[0xD6] = {&execute_sub, OperandType::Data8u};
     m_instruction_handlers[0xD7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x10};
     m_instruction_handlers[0xD8] = {&execute_ret, OperandType::None, OperandType::None, Condition::C};
     m_instruction_handlers[0xD9] = {&execute_reti};
@@ -650,27 +650,27 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    // Render
-    {
-        RenderTarget<8, 8> render;
-        render.render_tile(m_emulator.m_bus, 0x8000, 0, 0);
-        for (u8 i = 0; i < render.screen_height; ++i) {
-            spdlog::info("{:02x}", fmt::join(render.m_pixels.at(i), " "));
-        }
-    }
+    // // Render
+    // {
+    //     RenderTarget<8, 8> render;
+    //     render.render_tile(m_emulator.m_bus, 0x8000, 0, 0);
+    //     for (u8 i = 0; i < render.screen_height; ++i) {
+    //         spdlog::info("{:02x}", fmt::join(render.m_pixels.at(i), " "));
+    //     }
+    // }
 
-    std::string prefix =
-        !spdlog::should_log(spdlog::level::info)
-            ? ""
-            : fmt::format(
-                  "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
-                  "L={:02x} "
-                  "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
-                  ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
-                  m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
-                  m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
-                  m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
-                  m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
+    std::string prefix = "";
+    // !spdlog::should_log(spdlog::level::info)
+    //     ? ""
+    //     : fmt::format(
+    //           "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
+    //           "L={:02x} "
+    //           "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
+    //           ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
+    //           m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
+    //           m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
+    //           m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
+    //           m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
     spdlog::info("{}", prefix);
 
@@ -689,9 +689,38 @@ void Cpu::execute_next_instruction() {
 
     if (pc == 0x0296) {
         spdlog::debug("Tracepoint: {}", prefix);
+
+        // // Render
+        // {
+        //     constexpr size_t nx = 16;
+        //     constexpr size_t ny = 8 * 3;
+        //     RenderTarget<8 * nx, 8 * ny> render;
+        //     for (size_t x = 0; x < nx; ++x) {
+        //         for (size_t y = 0; y < ny; ++y) {
+        //             render.render_tile(m_emulator.m_bus, 0x8000 + x * 0x10 + y * 0x100, 8 * x, 8 * y);
+        //         }
+        //     }
+        //     for (u8 i = 0; i < render.screen_height; ++i) {
+        //         std::string s;
+        //         for (u8 c = 0; c < render.screen_width; ++c) {
+        //             const auto b = render.m_pixels[i][c];
+        //             if (b == 0) {
+        //                 s += "  ";
+        //             } else if (b == 1) {
+        //                 s += "--";
+        //             } else if (b == 2) {
+        //                 s += "xx";
+        //             } else if (b == 3) {
+        //                 s += "##";
+        //             }
+        //         }
+        //
+        //         spdlog::info(s);
+        //     }
+        // }
     }
 
-    if (pc == 0x47fa) {
+    if (pc == 0x47f2) {
         spdlog::debug("Tracepoint: {}", prefix);
     }
 
@@ -928,17 +957,16 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
 
     if (reg1 == Register::A) {
         // 8-bit add to A
-        const auto old_value = m_registers.get_u8(reg1);
-        const auto added_value = decode_u8(instruction.m_op2);
+        const int old_value = m_registers.get_u8(reg1);
+        const int added_value = decode_u8(instruction.m_op2);
 
-        const auto new_value_int = static_cast<int>(old_value) + added_value;
-        const auto new_value = static_cast<u8>(new_value_int & 0xFF);
+        const int new_value = old_value + added_value;
+        const int new_value_half = (old_value & 0xF) + (added_value & 0xF);
 
-        m_registers.a = new_value;
+        const u8 new_value_u8 = static_cast<u8>(new_value);
 
-        m_registers.set_z(new_value == 0);
-        m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
-        m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
+        m_registers.a = new_value_u8;
+        m_registers.set_flags(new_value_u8 == 0, false, new_value_half > 0xF, new_value > 0xFF);
     } else if (reg1 == Register::SP) {
         // Special case
         const auto old_value = m_registers.sp;
@@ -966,26 +994,51 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
     }
 }
 
-void Cpu::execute_adc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+void Cpu::execute_adc(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info("{} ADC A, {}", dbg, to_string(instruction.m_op1));
 
-void Cpu::execute_sub(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
+    m_registers.set_n(false);
+
+    // 8-bit add to A, with carry
+    const int old_value = m_registers.a;
+    const int added_value = decode_u8(instruction.m_op1);
+    const u8 old_c = m_registers.get_c() ? 1 : 0;
+
+    const int new_value = old_value + added_value + old_c;
+    const int new_value_half = (old_value & 0xF) + (added_value & 0xF) + old_c;
+    const u8 new_value_u8 = static_cast<u8>(new_value);
+
+    m_registers.a = new_value_u8;
+    m_registers.set_flags(new_value_u8 == 0, false, new_value_half > 0xF, new_value > 0xFF);
+}
+
+void Cpu::execute_sub(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::info("{} SUB A, {}", dbg, to_string(instruction.m_op1));
+
+    const int old_value = m_registers.a;
+    const int subtracted_value = decode_u8(instruction.m_op1);
+
+    const int new_value = old_value - subtracted_value;
+    const int new_value_half = (old_value & 0xF) - (subtracted_value & 0xF);
+    const u8 new_value_u8 = static_cast<u8>(new_value);
+
+    m_registers.a = new_value_u8;
+    m_registers.set_flags(new_value_u8 == 0, true, new_value_half < 0, new_value < 0);
+}
 
 void Cpu::execute_sbc(const std::string &dbg, const CpuInstruction &instruction) {
     spdlog::info("{} SBC A, {}", dbg, to_string(instruction.m_op1));
 
     const auto c = m_registers.get_c() ? 1 : 0;
-    const auto a = static_cast<int>(m_registers.a);
-    const auto b = static_cast<int>(decode_u8(instruction.m_op1));
+    const int old_value = m_registers.a;
+    const int subtracted_value = decode_u8(instruction.m_op1);
 
-    const auto value_int = a - b - c;
-    const auto value_half_int = (a & 0xF) - (b & 0xF) - c;
+    const int new_value = old_value - subtracted_value - c;
+    const int new_value_half = (old_value & 0xF) - (subtracted_value & 0xF) - c;
+    const u8 new_value_u8 = static_cast<u8>(new_value);
 
-    m_registers.a = static_cast<u8>(value_int);
-
-    m_registers.set_z(value_int == 0);
-    m_registers.set_n(true);
-    m_registers.set_h(value_half_int < 0);
-    m_registers.set_c(value_int < 0);
+    m_registers.a = new_value_u8;
+    m_registers.set_flags(new_value_u8 == 0, true, new_value_half < 0, new_value < 0);
 }
 
 void Cpu::execute_cp(const std::string &dbg, const CpuInstruction &instruction) {
@@ -1095,77 +1148,141 @@ void Cpu::execute_reti(const std::string &dbg, const CpuInstruction &) {
     m_emulator.add_cycles();
 }
 
-void Cpu::execute_rrca(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} RRCA", dbg);
-
-    auto value = m_registers.a;
-    const bool c = value & 0b1;
-    value >>= 1;
-    set_bit(value, 7, c);
-    m_registers.a = value;
-    m_registers.set_c(c);
-}
-
-void Cpu::execute_rrc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
-
-void Cpu::execute_rra(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
-
-void Cpu::execute_rr(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
-
-void Cpu::execute_rlca(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} RLCA", dbg);
-
-    auto value = m_registers.a;
-    const bool c = (value >> 7) & 0b1;
-    value = (value << 1) | c;
-    m_registers.a = value;
-    m_registers.set_c(c);
-}
-
-void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
-
-void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &instruction) { throw NotImplementedError(); }
-
 void Cpu::execute_sra(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    const u8 input = m_registers.get_u8(reg);
+    spdlog::info("{} SRA {}", dbg, to_string(instruction.m_op1));
+
+    const u8 input = read_register_u8(reg);
     s8 value_i = static_cast<s8>(input);
     value_i >>= 1;
     const u8 value = static_cast<u8>(value_i);
-    m_registers.set_u8(reg, value);
+
+    write_register_u8(reg, value);
     m_registers.set_flags(value == 0, false, false, get_bit(input, 0));
 }
 
-void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} SLA {}", dbg, to_string(instruction.m_op1));
+void Cpu::execute_srl(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} SRL {}", dbg, to_string(instruction.m_op1));
 
-    const u8 old_value = decode_u8(instruction.m_op1);
-    auto value = old_value;
-    value <<= 1;
-    value |= m_registers.get_z() ? 1 : 0;
+    auto value = read_register_u8(reg);
+    const bool shifted_bit = get_bit(value, 0);
+    value >>= 1;
+
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, shifted_bit);
+}
+
+void Cpu::execute_rrc(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} RRC {}", dbg, to_string(instruction.m_op1));
+
+    auto value = read_register_u8(reg);
+    const bool rotated_bit = get_bit(value, 0);
+    value >>= 1;
+    set_bit(value, 7, rotated_bit);
+
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, rotated_bit);
+}
+
+void Cpu::execute_rrca(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} RRCA", dbg);
+
+    auto value = m_registers.a;
+    const bool rotated_bit = get_bit(value, 0);
+    value >>= 1;
+    set_bit(value, 7, rotated_bit);
+
+    m_registers.a = value;
+    m_registers.set_flags(false, false, false, rotated_bit);
+}
+
+void Cpu::execute_rr(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} RR", dbg, to_string(instruction.m_op1));
+
+    auto value = read_register_u8(reg);
+    const bool rotated_bit = get_bit(value, 0);
+    value >>= 1;
+    set_bit(value, 7, m_registers.get_c());
 
     write_register_u8(instruction.m_op1.m_register.value(), value);
+    m_registers.set_flags(value == 0, false, false, rotated_bit);
+}
 
-    m_registers.set_z(value == 0);
-    m_registers.set_n(false);
-    m_registers.set_h(false);
-    m_registers.set_c(old_value & 0x80);
+void Cpu::execute_rra(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} RRA", dbg);
+
+    auto value = m_registers.a;
+    const bool rotated_bit = get_bit(value, 0);
+    value >>= 1;
+    set_bit(value, 7, m_registers.get_c());
+
+    m_registers.a = value;
+    m_registers.set_flags(false, false, false, rotated_bit);
+}
+
+void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} SLA {}", dbg, to_string(instruction.m_op1));
+
+    auto value = read_register_u8(reg);
+    const bool shifted_bit = get_bit(value, 7);
+    value <<= 1;
+
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, shifted_bit);
+}
+
+void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} RLC", dbg, to_string(instruction.m_op1));
+
+    auto value = read_register_u8(reg);
+    const bool rotated_bit = get_bit(value, 7);
+    value <<= 1;
+    set_bit(value, 0, rotated_bit);
+
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, rotated_bit);
+}
+
+void Cpu::execute_rlca(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} RLCA", dbg);
+
+    auto value = m_registers.a;
+    const bool rotated_bit = get_bit(value, 7);
+    value <<= 1;
+    set_bit(value, 0, rotated_bit);
+
+    m_registers.a = value;
+    m_registers.set_flags(false, false, false, rotated_bit);
 }
 
 void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
     spdlog::info("{} RL {}", dbg, to_string(instruction.m_op1));
 
-    const u8 old_value = decode_u8(instruction.m_op1);
-    auto value = old_value;
+    auto value = read_register_u8(reg);
+    const bool rotated_bit = get_bit(value, 7);
     value <<= 1;
-    value |= m_registers.get_z() ? 1 : 0;
+    set_bit(value, 0, m_registers.get_z());
 
-    write_register_u8(instruction.m_op1.m_register.value(), value);
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, rotated_bit);
+}
 
-    m_registers.set_z(value == 0);
-    m_registers.set_n(false);
-    m_registers.set_h(false);
-    m_registers.set_c(old_value & 0x80);
+void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &) {
+    spdlog::info("{} RLA", dbg);
+
+    auto value = m_registers.a;
+    const bool rotated_bit = get_bit(value, 7);
+    value <<= 1;
+    set_bit(value, 0, m_registers.get_z());
+
+    m_registers.a = value;
+    m_registers.set_flags(false, false, false, rotated_bit);
 }
 
 void Cpu::execute_push(const std::string &dbg, const CpuInstruction &instruction) {
@@ -1247,6 +1364,17 @@ void Cpu::execute_res(const std::string &dbg, const CpuInstruction &instruction)
     auto value = decode_u8(instruction.m_op1);
     set_bit(value, instruction.m_parameter, false);
     write_register_u8(instruction.m_op1.m_register.value(), value);
+}
+
+void Cpu::execute_swap(const std::string &dbg, const CpuInstruction &instruction) {
+    const auto reg = instruction.m_op1.m_register.value();
+    spdlog::info("{} SWAP {}", dbg, to_string(instruction.m_op1));
+
+    auto value = read_register_u8(reg);
+    value = (value >> 4) | (value << 4);
+
+    write_register_u8(reg, value);
+    m_registers.set_flags(value == 0, false, false, false);
 }
 
 void Cpu::execute_di(const std::string &dbg, const CpuInstruction &) {
@@ -1362,4 +1490,13 @@ void Cpu::write_register_u8(const Register reg, const u8 value) {
     } else {
         m_registers.set_u8(reg, value);
     }
+}
+
+u8 Cpu::read_register_u8(const Register reg) const {
+    if (reg == Register::HL) {
+        const auto address = m_registers.get_u8(Register::HL);
+        return m_emulator.m_bus.read_u8(address);
+    }
+
+    return m_registers.get_u8(reg);
 }

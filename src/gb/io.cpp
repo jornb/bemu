@@ -1,14 +1,24 @@
 #include <spdlog/fmt/fmt.h>
+#include <spdlog/spdlog.h>
 
 #include <bemu/gb/io.hpp>
 #include <stdexcept>
 
 #include "spdlog/spdlog.h"
-#include <spdlog/spdlog.h>
 
 using namespace bemu::gb;
 
 u8 Io::read(u16 address) const {
+    if (address == 0xFF00) {
+        // auto select_buttons = get_bit(m_joypad, 5);
+        // auto select_pad = get_bit(m_joypad, 4);
+
+        // TODO: Return buttons. If both buttons are selected, the low nibble reads 0xF (all buttons released)
+        //       All buttons released (for now)
+
+        return m_joypad & 0xF0 | 0x0F;
+    }
+
     if (address == 0xFF01) {
         return m_serial_data;
     }
@@ -34,11 +44,20 @@ u8 Io::read(u16 address) const {
     spdlog::warn("Unsupported read to I/O address {:04x}", address);
     return 0x00;
 
-
     // throw std::runtime_error(fmt::format("Unsupported read to I/O address {:04x}", address));
 }
 
 void Io::write(u16 address, const u8 value) {
+    if (address == 0xFF00) {
+        // The lower nibble is read-only, so only write the top
+        m_joypad = value & 0xF0 | m_joypad & 0x0F;
+
+        // Top bits are not used, but seem to be set to 1?
+        m_joypad |= 0b11000000;
+
+        return;
+    }
+
     if (address == 0xFF01) {
         m_serial_data = value;
         return;

@@ -11,7 +11,13 @@ struct Io {
     Lcd m_lcd{};
 
     /// FF00 - P1/JOYP: Joypad
-    u8 m_joypad = 0;
+    ///
+    /// The eight Game Boy action/direction buttons are arranged as a 2×4 matrix. Select either action or direction
+    /// buttons by writing to this register, then read out the bits 0-3.
+    ///
+    /// The lower nibble is Read-only. Note that, rather unconventionally for the Game Boy, a button being pressed is
+    /// seen as the corresponding bit being 0, not 1.
+    u8 m_joypad = 0xEF;
 
     /// FF01 - SB: Serial transfer data
     u8 m_serial_data = 0;
