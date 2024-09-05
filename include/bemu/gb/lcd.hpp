@@ -3,6 +3,7 @@
 
 #include "lcd.hpp"
 #include "types.hpp"
+#include "utils.hpp"
 
 namespace bemu::gb {
 
@@ -11,14 +12,8 @@ struct Lcd {
     explicit Lcd();
 
     /// FF40 - LCDC: LCD control
-    /// Bit 0: BG & Window enable / priority [Different meaning in CGB Mode]: 0 = Off; 1 = On
-    /// Bit 1: OBJ enable
-    /// Bit 2: OBJ size: 0 = 8×8; 1 = 8×16
-    /// Bit 3: BG tile map area: 0 = 9800–9BFF; 1 = 9C00–9FFF
-    /// Bit 4: BG & Window tile data area: 0 = 8800–97FF; 1 = 8000–8FFF
-    /// Bit 5: Window enable: 0 = Off; 1 = On
-    /// Bit 6: Window tile map area: 0 = 9800–9BFF; 1 = 9C00–9FFF
-    /// Bit 7: LCD & PPU enable: 0 = Off; 1 = On
+    ///
+    /// LCDC is the main LCD Control register. Its bits toggle what elements are displayed on the screen, and how.
     u8 m_control = 0x91;
 
     u8 m_status = 0;
@@ -28,7 +23,7 @@ struct Lcd {
     /// FF44 - LY: LCD Y coordinate [read-only]
     /// LY indicates the current horizontal line, which might be about to be drawn, being drawn, or just been drawn. LY
     /// can hold any value from 0 to 153, with values from 144 to 153 indicating the VBlank period.
-    u8 ly = 0x94;//0;
+    u8 ly = 0x94;  // 0;
 
     /// FF45 - LYC: LY compare
     /// The Game Boy constantly compares the value of the LYC and LY registers. When both values are identical, the
@@ -48,6 +43,57 @@ struct Lcd {
 
     u8 read(u16 address);
     void write(u16 address, u8 value);
+
+    /// When Bit 0 is cleared, both background and window become blank (white), and the Window Display Bit is ignored in
+    /// that case. Only objects may still be displayed (if enabled in Bit 1).
+    ///
+    /// TODO GBC: Different meaning
+    [[nodiscard]] bool get_background_and_window_enable() const { return get_bit(m_control, 0); }
+
+    /// This bit toggles whether objects are displayed or not.
+    ///
+    /// This can be toggled mid-frame, for example to avoid objects being displayed on top of a status bar or text box.
+    [[nodiscard]] bool get_object_enable() const { return get_bit(m_control, 1); }
+
+    /// This bit controls the size of all objects (1 tile or 2 stacked vertically).
+    ///
+    /// Be cautious when changing object size mid-frame. Changing from 8×8 to 8×16 pixels mid-frame within 8 scanlines
+    /// of the bottom of an object causes the object’s second tile to be visible for the rest of those 8 lines. If the
+    /// size is changed during mode 2 or 3, remnants of objects in range could “leak” into the other tile and cause
+    /// artifacts.
+    [[nodiscard]] bool get_object_size_16() const { return get_bit(m_control, 2); }
+
+    /// This bit works similarly to LCDC bit 6: if the bit is clear (0), the BG uses tilemap $9800, otherwise tilemap
+    /// $9C00.
+    [[nodiscard]] u16 get_background_tile_map_start_address() const { return get_bit(m_control, 3) ? 0x9C00 : 0x9800; }
+
+    /// This bit controls which addressing mode the BG and Window use to pick tiles.
+    ///
+    /// Objects (sprites) aren’t affected by this, and will always use the $8000 addressing mode.
+    [[nodiscard]] u16 get_background_and_window_tile_data_start_address() const {
+        return get_bit(m_control, 4) ? 0x8000 : 0x8800;
+    }
+
+    /// This bit controls whether the window shall be displayed or not. This bit is overridden on DMG by bit 0 if that
+    /// bit is clear.
+    ///
+    /// Changing the value of this register mid-frame triggers a more complex behaviour: see further below.
+    ///
+    /// TODO GBC: Note that on CGB models, setting this bit to 0 then back to 1 mid-frame may cause the second write to
+    ///           be ignored.
+    [[nodiscard]] bool get_window_enable() const { return get_bit(m_control, 5); }
+
+    /// This bit controls which addressing mode the BG and Window use to pick tiles.
+    ///
+    /// Objects (sprites) aren’t affected by this, and will always use the $8000 addressing mode.
+    [[nodiscard]] u16 get_window_tile_map_start_address() const { return get_bit(m_control, 6) ? 0x9C00 : 0x9800; }
+
+    /// This bit controls whether the LCD is on and the PPU is active. Setting it to 0 turns both off, which grants
+    /// immediate and full access to VRAM, OAM, etc.
+    ///
+    /// When re-enabling the LCD, the PPU will immediately start drawing again, but the screen will stay blank during
+    /// the first frame.
+    [[nodiscard]] bool get_enable_lcd_and_ppu() const { return get_bit(m_control, 7); }
 };
 #pragma pack(pop)
 
