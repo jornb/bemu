@@ -9,6 +9,8 @@
 
 namespace bemu::gb {
 
+enum InterruptType : u8 { VBlank, LCD, Timer, Serial, Joypad };
+
 /// CPU regsiter type
 enum class Register : u8 { None, A, F, B, C, D, E, H, L, AF, BC, DE, HL, SP, PC };
 constexpr bool is_16bit(const Register reg) { return reg >= Register::AF; }
@@ -131,12 +133,54 @@ struct Cpu {
     bool m_halted = false;
     bool m_stepping = false;
 
-    bool m_int_master_enabled = false;
-    bool m_enabling_ime = false;
-    u8 m_ie_register = 0x00;
-    u8 m_int_flags;
+    /// IME is a flag internal to the CPU that controls whether any interrupt handlers are called, regardless of the
+    /// contents of IE. IME cannot be read in any way, and is modified by these instructions/events only:
+    ///     * ei
+    ///     * di
+    ///     * reti
+    ///     * When an interrupt handler is executed: Disables interrupts before calling the interrupt handler
+    ///
+    /// IME is unset (interrupts are disabled) when the game starts running.
+    ///
+    /// The effect of ei is delayed by one instruction. This means that ei followed immediately by di does not allow any
+    /// interrupts between them. This interacts with the halt bug in an interesting way.
+    bool m_interrupt_master_enable = false;
+
+    /// The delay of interrupt master enable is delayed with 1 instruction. Hence, we set this flag instead.
+    bool m_set_interrupt_master_enable_next_cycle = false;
+
+    /// FF0F - IF: Interrupt flag
+    ///
+    /// Bit 0: VBlank
+    /// Bit 1: LCD
+    /// Bit 2: Timer
+    /// Bit 3: Serial
+    /// Bit 4: Joypad
+    ///
+    /// When an interrupt request signal (some internal wire going from the PPU/APU/… to the CPU) changes from low to
+    /// high, the corresponding bit in the IF register becomes set. For example, bit 0 becomes set when the PPU enters
+    /// the VBlank period.
+    ///
+    /// Any set bits in the IF register are only requesting an interrupt. The actual execution of the interrupt handler
+    /// happens only if both the IME flag and the corresponding bit in the IE register are set; otherwise the interrupt
+    /// “waits” until both IME and IE allow it to be serviced.
+    ///
+    /// Since the CPU automatically sets and clears the bits in the IF register, it is usually not necessary to write to
+    /// the IF register. However, the user may still do that in order to manually request (or discard) interrupts. Just
+    /// like real interrupts, a manually requested interrupt isn’t serviced unless/until IME and IE allow it.
+    u8 m_interrupt_request_flags = 0;
+
+    /// FFFF — IE: Interrupt enable
+    u8 m_interrupt_enable_flags = 0;
 
     explicit Cpu(Emulator &emulator);
+
+    [[nodiscard]] bool contains(u16 address) const;
+    [[nodiscard]] u8 read_memory(u16 address) const;
+    void write_memory(u16 address, u8 value);
+
+    void set_pending_interrupt(InterruptType type, bool pending_interrupt = true);
+    [[nodiscard]] bool has_pending_interrupt() const;
 
     u8 peek_u8() const;    ///< Fetch u8 from program counter
     u16 peek_u16() const;  ///< Fetch u16 from program counter, little-endian
@@ -157,6 +201,7 @@ struct Cpu {
 
     bool step();
     void execute_next_instruction();
+    void execute_interrupts();
 
     // bool execute_cb(const std::string &debug_prefix);
     //

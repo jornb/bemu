@@ -27,10 +27,6 @@ u8 Io::read(u16 address) const {
         return m_serial_control;
     }
 
-    if (address == 0xFF0F) {
-        return m_interrupts;
-    }
-
     if (0xFF04 <= address && address <= 0xFF07) {
         return m_timer.read(address);
     }
@@ -65,11 +61,6 @@ void Io::write(u16 address, const u8 value) {
 
     if (address == 0xFF02) {
         m_serial_control = value;
-        return;
-    }
-
-    if (address == 0xFF0F) {
-        m_interrupts = value;
         return;
     }
 

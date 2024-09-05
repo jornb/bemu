@@ -11,6 +11,14 @@
 
 using namespace bemu::gb;
 
+static std::array<u16, 5> g_interrupt_jump_addresses = {
+    0x40,  // VBlank
+    0x48,  // LCD
+    0x50,  // Timer
+    0x58,  // Serial
+    0x60   // Joypad
+};
+
 namespace {
 struct UnexpectedError : std::exception {
     explicit UnexpectedError(const std::string &reason = "",
@@ -28,6 +36,18 @@ struct NotImplementedError : std::exception {
     explicit NotImplementedError(const std::string &reason = "",
                                  const std::source_location sl = std::source_location::current()) {
         m_what = fmt::format("Implementation error in {}: {}", sl.function_name(), reason);
+    }
+
+    [[nodiscard]] const char *what() const noexcept override { return m_what.c_str(); }
+
+   private:
+    std::string m_what;
+};
+
+struct UnexpectedAddressError : std::exception {
+    explicit UnexpectedAddressError(const u16 address,
+                                    const std::source_location sl = std::source_location::current()) {
+        m_what = fmt::format("Unexpected address {:04x} in {}", address, sl.function_name());
     }
 
     [[nodiscard]] const char *what() const noexcept override { return m_what.c_str(); }
@@ -583,6 +603,40 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     add_octet(0370, &execute_set, 7);
 }
 
+bool Cpu::contains(const u16 address) const { return address == 0xFFFF || address == 0xFF0F; }
+
+u8 Cpu::read_memory(const u16 address) const {
+    if (address == 0xFFFF) {
+        return m_interrupt_request_flags;
+    }
+
+    if (address == 0xFF0F) {
+        return m_interrupt_request_flags;
+    }
+
+    throw UnexpectedAddressError(address);
+}
+
+void Cpu::write_memory(const u16 address, const u8 value) {
+    if (address == 0xFFFF) {
+        m_interrupt_request_flags = value;
+        return;
+    }
+
+    if (address == 0xFF0F) {
+        m_interrupt_request_flags = value;
+        return;
+    }
+
+    throw UnexpectedAddressError(address);
+}
+
+void Cpu::set_pending_interrupt(const InterruptType type, const bool pending_interrupt) {
+    set_bit(m_interrupt_request_flags, type, pending_interrupt);
+}
+
+bool Cpu::has_pending_interrupt() const { return m_interrupt_request_flags & 0b11111 > 0; }
+
 u8 Cpu::peek_u8() const { return m_emulator.m_bus.read_u8(m_registers.pc, false); }
 
 u16 Cpu::peek_u16() const {
@@ -635,6 +689,26 @@ u16 Cpu::stack_pop16() {
 bool Cpu::step() {
     if (!m_halted) {
         execute_next_instruction();
+    } else {
+        // Halt for 1 cycle
+        m_emulator.add_cycles();
+
+        // Exit halt status once an interrupt is set
+        // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
+        if (has_pending_interrupt()) {
+            m_halted = true;
+        }
+    }
+
+    // Handle interrupts
+    if (m_interrupt_master_enable) {
+        execute_interrupts();
+        m_set_interrupt_master_enable_next_cycle = false;
+    }
+
+    // Enable interrupts 1 cycle delayed
+    if (m_set_interrupt_master_enable_next_cycle) {
+        m_interrupt_master_enable = true;
     }
 
     return true;
@@ -690,34 +764,34 @@ void Cpu::execute_next_instruction() {
     if (pc == 0x0296) {
         spdlog::debug("Tracepoint: {}", prefix);
 
-        // // Render
-        // {
-        //     constexpr size_t nx = 16;
-        //     constexpr size_t ny = 8 * 3;
-        //     RenderTarget<8 * nx, 8 * ny> render;
-        //     for (size_t x = 0; x < nx; ++x) {
-        //         for (size_t y = 0; y < ny; ++y) {
-        //             render.render_tile(m_emulator.m_bus, 0x8000 + x * 0x10 + y * 0x100, 8 * x, 8 * y);
-        //         }
-        //     }
-        //     for (u8 i = 0; i < render.screen_height; ++i) {
-        //         std::string s;
-        //         for (u8 c = 0; c < render.screen_width; ++c) {
-        //             const auto b = render.m_pixels[i][c];
-        //             if (b == 0) {
-        //                 s += "  ";
-        //             } else if (b == 1) {
-        //                 s += "--";
-        //             } else if (b == 2) {
-        //                 s += "xx";
-        //             } else if (b == 3) {
-        //                 s += "##";
-        //             }
-        //         }
-        //
-        //         spdlog::info(s);
-        //     }
-        // }
+        // Render
+        {
+            constexpr size_t nx = 16;
+            constexpr size_t ny = 8 * 3;
+            RenderTarget<8 * nx, 8 * ny> render;
+            for (size_t x = 0; x < nx; ++x) {
+                for (size_t y = 0; y < ny; ++y) {
+                    render.render_tile(m_emulator.m_bus, 0x8000 + x * 0x10 + y * 0x100, 8 * x, 8 * y);
+                }
+            }
+            for (u8 i = 0; i < render.screen_height; ++i) {
+                std::string s;
+                for (u8 c = 0; c < render.screen_width; ++c) {
+                    const auto b = render.m_pixels[i][c];
+                    if (b == 0) {
+                        s += "  ";
+                    } else if (b == 1) {
+                        s += "--";
+                    } else if (b == 2) {
+                        s += "xx";
+                    } else if (b == 3) {
+                        s += "##";
+                    }
+                }
+
+                spdlog::info(s);
+            }
+        }
     }
 
     if (pc == 0x47f2) {
@@ -823,6 +897,27 @@ void Cpu::execute_next_instruction() {
     //     }
     //
     //      throw std::runtime_error(fmt::format("{} Unknown opcode {:02x}", prefix, opcode));
+}
+
+void Cpu::execute_interrupts() {
+    for (u8 bit = 0; bit < 8; ++bit) {
+        if (get_bit(m_interrupt_request_flags, bit)) {
+            // Clear the interrupt request flag
+            set_bit(m_interrupt_request_flags, bit, false);
+
+            // Disable interrupts immediately
+            m_interrupt_master_enable = false;
+
+            m_halted = false;  // TODO: Remove
+
+            // Call the interrupt handler
+            stack_push16(m_registers.pc);
+            m_registers.pc = g_interrupt_jump_addresses[bit];
+
+            // Only one interrupt can be handled each cycle
+            return;
+        }
+    }
 }
 
 void Cpu::execute_noop(const std::string &debug_prefix, const CpuInstruction &) {
@@ -1143,7 +1238,7 @@ void Cpu::execute_ret(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_reti(const std::string &dbg, const CpuInstruction &) {
     spdlog::info("{} RETI", dbg);
-    m_int_master_enabled = true;
+    m_interrupt_master_enable = true;
     m_registers.pc = stack_pop16();
     m_emulator.add_cycles();
 }
@@ -1379,12 +1474,12 @@ void Cpu::execute_swap(const std::string &dbg, const CpuInstruction &instruction
 
 void Cpu::execute_di(const std::string &dbg, const CpuInstruction &) {
     spdlog::info("{} DI", dbg);
-    m_int_master_enabled = false;
+    m_interrupt_master_enable = false;
 }
 
 void Cpu::execute_ei(const std::string &dbg, const CpuInstruction &) {
     spdlog::info("{} EI", dbg);
-    m_int_master_enabled = true;
+    m_set_interrupt_master_enable_next_cycle = true;
 }
 
 std::string Cpu::to_string(const OperandDescription &op) const {

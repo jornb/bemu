@@ -25,6 +25,10 @@ using namespace bemu::gb;
 u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (add_cycles) m_emulator.add_cycles();
 
+    if (m_emulator.m_cpu.contains(address)) {
+        return m_emulator.m_cpu.read_memory(address);
+    }
+
     if (m_emulator.m_cartridge.contains(address)) {
         return m_emulator.m_cartridge.read(address);
     }
@@ -55,9 +59,6 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         // * On DMG, MGB, SGB, and SGB2, reads during OAM block trigger OAM corruption. Reads otherwise return $00.
         return 0x00;
     }
-    if (address == 0xFFFF) {
-        return m_emulator.m_cpu.m_ie_register;
-    }
 
     // // Gameboy color only registers
     // if (address == 0xFF4D) {
@@ -71,6 +72,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
 
 void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
     if (add_cycles) m_emulator.add_cycles();
+
+    if (m_emulator.m_cpu.contains(address)) {
+        return m_emulator.m_cpu.write_memory(address, value);
+    }
 
     if (m_emulator.m_cartridge.contains(address)) {
         return m_emulator.m_cartridge.write(address, value);
@@ -97,10 +102,6 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
     }
     if (0xFEA0 <= address && address <= 0xFEFF) {
         // Reserved
-        return;
-    }
-    if (address == 0xFFFF) {
-        m_emulator.m_cpu.m_ie_register = value;
         return;
     }
 
