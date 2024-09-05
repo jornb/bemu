@@ -11,6 +11,7 @@ struct Emulator {
     Cartridge m_cartridge;
     Bus m_bus{*this};
     Cpu m_cpu{*this};
+    Screen m_screen;
 
     bool m_paused = false;
     bool m_running = true;

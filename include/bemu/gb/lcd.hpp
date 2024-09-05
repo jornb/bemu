@@ -7,6 +7,32 @@
 
 namespace bemu::gb {
 
+enum class PpuMode : u8 {
+    /// Waiting until the end of the scanline.
+    ///
+    /// Duration: 376 - Drawing mode duration
+    /// Accessible video memory: VRAM, OAM, CGB palettes
+    HorizontalBlank = 0,
+
+    /// Waiting until the next frame
+    ///
+    /// Duration: 4560 dots (10 scanlines)
+    /// Accessible video memory: VRAM, OAM, CGB palettes
+    VerticalBlank = 1,
+
+    /// Searching for OBJs which overlap this line
+    ///
+    /// Duration: 10 dots
+    /// Accessible video memory: VRAM, CGB palettes
+    OemScan = 2,
+
+    /// Sending pixels to the LCD
+    ///
+    /// Duration: 172 - 289 dots
+    /// Accessible video memory: None
+    Drawing = 3
+};
+
 #pragma pack(push, 1)
 struct Lcd {
     explicit Lcd();
@@ -94,6 +120,9 @@ struct Lcd {
     /// When re-enabling the LCD, the PPU will immediately start drawing again, but the screen will stay blank during
     /// the first frame.
     [[nodiscard]] bool get_enable_lcd_and_ppu() const { return get_bit(m_control, 7); }
+
+    PpuMode get_ppu_mode() const { return static_cast<PpuMode>(m_status & 0b11); }
+    void set_ppu_mode(PpuMode mode) { m_status = (m_status & ~0b11) | static_cast<u8>(mode); }
 };
 #pragma pack(pop)
 

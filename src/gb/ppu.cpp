@@ -40,9 +40,12 @@ u8 Ppu::read(const u16 address) const {
         return m_oam_dma.read(address);
     }
 
-    if (m_mode == Mode::Drawing) return 0xFF;
+    const auto mode = m_lcd.get_ppu_mode();
+    if (mode == PpuMode::Drawing) {
+        return 0xFF;
+    }
 
-    if (m_oam.contains(address) && m_mode == Mode::OemScan) {
+    if (m_oam.contains(address) && mode == PpuMode::OemScan) {
         return 0xFF;
     }
 
@@ -62,9 +65,12 @@ void Ppu::write(const u16 address, const u8 value) {
         return m_oam_dma.write(address, value);
     }
 
-    if (m_mode == Mode::Drawing) return;
+    const auto mode = m_lcd.get_ppu_mode();
+    if (mode == PpuMode::Drawing) {
+        return;
+    }
 
-    if (m_oam.contains(address) && m_mode == Mode::OemScan) {
+    if (m_oam.contains(address) && mode == PpuMode::OemScan) {
         return;
     }
 
