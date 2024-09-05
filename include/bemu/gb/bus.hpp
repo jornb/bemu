@@ -14,10 +14,10 @@ namespace bemu::gb {
 struct Emulator;
 struct Bus {
     Emulator &m_emulator;
-    Io m_io;
     WRAM m_wram{};
     RAM<0xFF80, 0xFFFE> m_hram{};
     Lcd m_lcd{};
+    Io m_io{m_lcd};
     RAM<0xFF10, 0xFF26> m_audio{};
     Ppu m_ppu;
 

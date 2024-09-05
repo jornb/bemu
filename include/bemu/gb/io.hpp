@@ -7,8 +7,8 @@
 namespace bemu::gb {
 
 struct Io {
+    Lcd &m_lcd;
     Timer m_timer;
-    Lcd m_lcd{};
 
     /// FF00 - P1/JOYP: Joypad
     ///

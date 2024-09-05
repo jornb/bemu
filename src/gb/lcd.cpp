@@ -12,9 +12,14 @@ Lcd::Lcd() {
     }
 }
 
-u8 Lcd::read(u16 address) {
+
+bool Lcd::contains(u16 address) const {
+    return 0xFF40 <= address && address <= 0xFF40 + sizeof(Lcd);
+}
+
+u8 Lcd::read_memory(u16 address) const {
     const u16 offset = address - 0xFF40;
-    const auto ptr = reinterpret_cast<u8*>(this);
+    const auto ptr = reinterpret_cast<const u8*>(this);
     return ptr[offset];
 }
 
@@ -36,7 +41,13 @@ u8 Lcd::read(u16 address) {
 //     p_colors[3] = colors_default[(palette_data >> 6) & 0b11];
 // }
 
-void Lcd::write(const u16 address, const u8 value) {
+void Lcd::write_memory(const u16 address, const u8 value) {
+    if (address == 0xFF41) {
+        // Two lower bits (LYC==LY and PPU mode) are read-only
+        m_status |= value & 0b11111100;
+        return;
+    }
+
     const u16 offset = address - 0xFF40;
     const auto ptr = reinterpret_cast<u8*>(this);
     ptr[offset] = value;
@@ -49,3 +60,4 @@ void Lcd::write(const u16 address, const u8 value) {
     //     update_palette(value & 0b11111100, 2);
     // }
 }
+

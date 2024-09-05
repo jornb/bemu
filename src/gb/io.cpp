@@ -31,10 +31,8 @@ u8 Io::read(u16 address) const {
         return m_timer.read(address);
     }
 
-    if (0xFF40 <= address && address <= 0xFF4B) {
-        // LCD
-        const auto lcd_ptr = reinterpret_cast<const u8*>(&m_lcd);
-        return lcd_ptr[address - 0xFF40];
+    if (m_lcd.contains(address)) {
+        return m_lcd.read_memory(address);
     }
 
     spdlog::warn("Unsupported read to I/O address {:04x}", address);
@@ -68,11 +66,8 @@ void Io::write(u16 address, const u8 value) {
         return m_timer.write(address, value);
     }
 
-    if (0xFF40 <= address && address <= 0xFF4B) {
-        // LCD
-        const auto lcd_ptr = reinterpret_cast<u8*>(&m_lcd);
-        lcd_ptr[address - 0xFF40] = value;
-        return;
+    if (m_lcd.contains(address)) {
+        return m_lcd.write_memory(address, value);
     }
 
     spdlog::warn("Unsupported write to I/O address {:04x} = {:02x}", address, value);

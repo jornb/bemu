@@ -12,25 +12,25 @@ enum class PpuMode : u8 {
     ///
     /// Duration: 376 - Drawing mode duration
     /// Accessible video memory: VRAM, OAM, CGB palettes
-    HorizontalBlank = 0,
+    HorizontalBlank,
 
     /// Waiting until the next frame
     ///
     /// Duration: 4560 dots (10 scanlines)
     /// Accessible video memory: VRAM, OAM, CGB palettes
-    VerticalBlank = 1,
+    VerticalBlank,
 
     /// Searching for OBJs which overlap this line
     ///
     /// Duration: 10 dots
     /// Accessible video memory: VRAM, CGB palettes
-    OemScan = 2,
+    OamScan,
 
     /// Sending pixels to the LCD
     ///
     /// Duration: 172 - 289 dots
     /// Accessible video memory: None
-    Drawing = 3
+    Drawing
 };
 
 #pragma pack(push, 1)
@@ -42,14 +42,17 @@ struct Lcd {
     /// LCDC is the main LCD Control register. Its bits toggle what elements are displayed on the screen, and how.
     u8 m_control = 0x91;
 
+    /// FF41 - STAT: LCD status
     u8 m_status = 0;
+
+    /// FF42, FF43 - SCY, SCX: Background viewport Y position, X position
     u8 scroll_y = 0;
     u8 scroll_x = 0;
 
     /// FF44 - LY: LCD Y coordinate [read-only]
     /// LY indicates the current horizontal line, which might be about to be drawn, being drawn, or just been drawn. LY
     /// can hold any value from 0 to 153, with values from 144 to 153 indicating the VBlank period.
-    u8 ly = 0x94;  // 0;
+    u8 ly = 0;
 
     /// FF45 - LYC: LY compare
     /// The Game Boy constantly compares the value of the LYC and LY registers. When both values are identical, the
@@ -67,8 +70,9 @@ struct Lcd {
     u32 sp1_colors[4];
     u32 sp2_colors[4];
 
-    u8 read(u16 address);
-    void write(u16 address, u8 value);
+    [[nodiscard]] bool contains(u16 address) const;
+    [[nodiscard]] u8 read_memory(u16 address) const;
+    void write_memory(u16 address, u8 value);
 
     /// When Bit 0 is cleared, both background and window become blank (white), and the Window Display Bit is ignored in
     /// that case. Only objects may still be displayed (if enabled in Bit 1).
@@ -123,6 +127,11 @@ struct Lcd {
 
     PpuMode get_ppu_mode() const { return static_cast<PpuMode>(m_status & 0b11); }
     void set_ppu_mode(PpuMode mode) { m_status = (m_status & ~0b11) | static_cast<u8>(mode); }
+
+    [[nodiscard]] bool is_horizontal_blank_interrupt_enabled() const { return get_bit(m_status, 3); }
+    [[nodiscard]] bool is_vertical_blank_interrupt_enabled() const { return get_bit(m_status, 4); }
+    [[nodiscard]] bool is_oam_interrupt_enabled() const { return get_bit(m_status, 5); }
+    [[nodiscard]] bool is_ly_compare_interrupt_enabled() const { return get_bit(m_status, 6); }
 };
 #pragma pack(pop)
 
