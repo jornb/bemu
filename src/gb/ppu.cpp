@@ -114,13 +114,15 @@ void Ppu::dot_tick() {
     if (next_mode == PpuMode::OamScan) {
         m_frame_number++;
         m_frame_tick = 0;
+
+        // spdlog::info("m_frame_number = {}", m_frame_number);
     }
 
     // Check for ly compare
     m_lcd.ly = get_line_number();
 
-    if (get_line_tick() == 0)
-        spdlog::info("ly = {}", m_lcd.ly);
+    // if (get_line_tick() == 0)
+    //     spdlog::info("ly = {}", m_lcd.ly);
 
     // Check ly compare every new line
     if (get_line_tick() == 0 && m_lcd.ly == m_lcd.ly_compare && m_lcd.is_ly_compare_interrupt_enabled()) {

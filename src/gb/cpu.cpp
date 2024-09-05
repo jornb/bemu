@@ -104,9 +104,9 @@ bool is_address(const OperandDescription t) {
 // bool execute_jp_a16(Cpu &cpu, const std::string &debug_prefix, const Condition condition) {
 //     const auto address = cpu.fetch_u16();
 //     if (condition == None) {
-//         spdlog::info("{} JP {:04x}", debug_prefix, address));
+//         spdlog::trace("{} JP {:04x}", debug_prefix, address));
 //     } else {
-//         spdlog::info("{} JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
+//         spdlog::trace("{} JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), address));
 //     }
 //
 //     return execute_jp(cpu, condition, address);
@@ -116,9 +116,9 @@ bool is_address(const OperandDescription t) {
 //     const auto rel = static_cast<s8>(cpu.fetch_u8());
 //     const auto address = cpu.m_registers.pc + rel;
 //     if (condition == None) {
-//         spdlog::info("{} JR {} = JP {:04x}", debug_prefix, rel, address));
+//         spdlog::trace("{} JR {} = JP {:04x}", debug_prefix, rel, address));
 //     } else {
-//         spdlog::info("{} JR {}, {} = JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), rel,
+//         spdlog::trace("{} JR {}, {} = JP {}, {:04x}", debug_prefix, magic_enum::enum_name(condition), rel,
 //                                  magic_enum::enum_name(condition), address));
 //     }
 //
@@ -150,7 +150,7 @@ bool is_address(const OperandDescription t) {
 //         case 0x38: return execute_jp_e8(cpu, debug_prefix, C);
 //
 //         case 0xE9: {
-//             spdlog::info("{} JP HL", debug_prefix));
+//             spdlog::trace("{} JP HL", debug_prefix));
 //             return execute_jp(cpu, None, cpu.m_registers.get_u16(Register::HL));
 //         }
 //
@@ -695,9 +695,10 @@ bool Cpu::step() {
 
         // Exit halt status once an interrupt is set
         // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
-        // if (has_pending_interrupt()) {
-        m_halted = false;
-        // }
+        if (has_pending_interrupt()) {
+            m_halted = false;
+            spdlog::info("Unhalted");
+        }
     }
 
     // Handle interrupts
@@ -724,19 +725,10 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    // // Render
-    // {
-    //     RenderTarget<8, 8> render;
-    //     render.render_tile(m_emulator.m_bus, 0x8000, 0, 0);
-    //     for (u8 i = 0; i < render.screen_height; ++i) {
-    //         spdlog::info("{:02x}", fmt::join(render.m_pixels.at(i), " "));
-    //     }
-    // }
-
     std::string prefix =
-        !spdlog::should_log(spdlog::level::info)
+        /*!spdlog::should_log(spdlog::level::trace)
             ? ""
-            : fmt::format(
+            :*/ fmt::format(
                   "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
                   "L={:02x} "
                   "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
@@ -746,23 +738,23 @@ void Cpu::execute_next_instruction() {
                   m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
                   m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
-    spdlog::info("{}", prefix);
+    spdlog::trace("{}", prefix);
 
     // This is where the error happens
     if (pc == 0x021c) {
-        spdlog::debug("Tracepoint: {}", prefix);
+        spdlog::trace("Tracepoint: {}", prefix);
     }
 
     if (pc == 0x021f) {
-        spdlog::debug("Tracepoint: {}", prefix);
+        spdlog::trace("Tracepoint: {}", prefix);
     }
 
     if (pc == 0x0293) {
-        spdlog::debug("Tracepoint: {}", prefix);
+        spdlog::trace("Tracepoint: {}", prefix);
     }
 
     if (pc == 0x0296) {
-        spdlog::debug("Tracepoint: {}", prefix);
+        spdlog::trace("Tracepoint: {}", prefix);
 
         // Render
         {
@@ -789,13 +781,13 @@ void Cpu::execute_next_instruction() {
                     }
                 }
 
-                spdlog::info(s);
+                spdlog::trace(s);
             }
         }
     }
 
     if (pc == 0x47f2) {
-        spdlog::debug("Tracepoint: {}", prefix);
+        spdlog::trace("Tracepoint: {}", prefix);
     }
 
     const auto *instruction_set = &m_instruction_handlers;
@@ -815,88 +807,6 @@ void Cpu::execute_next_instruction() {
         }
         (this->*instruction.m_handler)(prefix, instruction);
     }
-
-    //
-    //     switch (opcode) {
-    //         case 0x00: {
-    //             spdlog::info("{} NOOP", prefix));
-    //             return;
-    //         }
-    //         case 0x10: {
-    //             spdlog::info("{} STOP", prefix));
-    //             // TODO: Handle STOP
-    //             throw std::runtime_error("STOP");
-    //         }
-    //         case 0x76: {
-    //             spdlog::info("{} HALT", prefix));
-    //             // TODO: Handle HALT
-    //             throw std::runtime_error("HALT");
-    //         }
-    //
-    //         case 0xF3: {
-    //             spdlog::info("{} DI", prefix));
-    //             m_int_master_enabled = false;
-    //             return;
-    //         }
-    //
-    //         case 0xCB: {
-    //             execute_cb(prefix);
-    //             return;
-    //         }
-    //
-    //             // default:
-    //             //     if (execute_ld(prefix, opcode) || execute_xor(prefix, opcode) || execute_cp(prefix, opcode) ||
-    //             //         execute_and(prefix, opcode) || execute_sub(prefix, opcode) || execute_jp(prefix, opcode)
-    //             ||
-    //             //         execute_call(prefix, opcode) || execute_inc(prefix, opcode) || execute_dec(prefix,
-    //             opcode))
-    //             //         return;
-    //     }
-    //
-    //     auto format_register = [](const Register reg, const bool hl_is_indirect = true,
-    //                               PostLoadOperation post_load_operation = PostLoadOperation::Nothing) {
-    //         if (reg != Register::HL || !hl_is_indirect) {
-    //             return magic_enum::enum_name(reg);
-    //         }
-    //         switch (post_load_operation) {
-    //             case PostLoadOperation::Decrement: return "[HL-]";
-    //             case PostLoadOperation::Increment: return "[HL+]";
-    //             default: return "[HL]";
-    //         }
-    //     };
-    //
-    //     const auto last_octet = opcode & 0b111;
-    //     const auto first_half = last_octet >> 3;
-    //
-    //     // register-register loads
-    //     if (010 <= first_half <= 017) {
-    //         const auto r1 = g_register_order[first_half - 010];
-    //         const auto r2 = g_register_order[last_octet];
-    //         // spdlog::info("{} LD {}, {}", prefix, format_register(r1), format_register(r2)));
-    //         return execute_ld(*this, r1, r2);
-    //     }
-    //
-    //     // 16-bit loads
-    //     switch (opcode) {
-    //         case 0x02: return execute_ld(*this, Register::BC, Register::A);
-    //         case 0x0A: return execute_ld(*this, Register::A, Register::BC);
-    //         case 0x12: return execute_ld(*this, Register::DE, Register::A);
-    //         case 0x1A: return execute_ld(*this, Register::A, Register::DE);
-    //         case 0x22: return execute_ld(*this, Register::HL, Register::A, PostLoadOperation::Increment);
-    //         case 0x2A: return execute_ld(*this, Register::A, Register::HL, PostLoadOperation::Increment);
-    //         case 0x32: return execute_ld(*this, Register::HL, Register::A, PostLoadOperation::Decrement);
-    //         case 0x3A: return execute_ld(*this, Register::A, Register::HL, PostLoadOperation::Decrement);
-    //     }
-    //
-    //     // 8-bit loads
-    //     switch (opcode) {
-    //         case 0x06: return execute_ld_n8(*this, Register::B);
-    //         case 0x16: return execute_ld_n8(*this, Register::D);
-    //         case 0x26: return execute_ld_n8(*this, Register::H);
-    //         case 0x36: return execute_ld_n8(*this, Register::HL, PostLoadOperation::Increment);
-    //     }
-    //
-    //      throw std::runtime_error(fmt::format("{} Unknown opcode {:02x}", prefix, opcode));
 }
 
 void Cpu::execute_interrupts() {
@@ -908,7 +818,10 @@ void Cpu::execute_interrupts() {
             // Disable interrupts immediately
             m_interrupt_master_enable = false;
 
-            m_halted = false;  // TODO: Remove
+            if (m_halted)
+                spdlog::info("Unhalted");
+            m_halted = false;  // TODO: Remove?
+            // spdlog::info("Unhalted");
 
             // Call the interrupt handler
             stack_push16(m_registers.pc);
@@ -921,22 +834,22 @@ void Cpu::execute_interrupts() {
 }
 
 void Cpu::execute_noop(const std::string &debug_prefix, const CpuInstruction &) {
-    spdlog::info("{} NOP", debug_prefix);
+    spdlog::trace("{} NOP", debug_prefix);
 }
 
 void Cpu::execute_stop(const std::string &debug_prefix, const CpuInstruction &) {
     const auto data = fetch_u8();
-    spdlog::info("{} STOP {:02x}", debug_prefix, data);
+    spdlog::trace("{} STOP {:02x}", debug_prefix, data);
     throw std::runtime_error("Stopped");
 }
 
 void Cpu::execute_halt(const std::string &debug_prefix, const CpuInstruction &) {
-    spdlog::info("{} HALT", debug_prefix);
+    spdlog::trace("{} HALT", debug_prefix);
     m_halted = true;
 }
 
 void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} LD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
+    spdlog::trace("{} LD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
 
     if (is_address(instruction.m_op1)) {
         // Load into address
@@ -961,7 +874,7 @@ void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) 
 }
 
 void Cpu::execute_inc(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} INC {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} INC {}", dbg, to_string(instruction.m_op1));
     const auto reg = instruction.m_op1.m_register.value();
 
     if (is_16bit(instruction.m_op1.m_register.value())) {
@@ -1001,7 +914,7 @@ void Cpu::execute_inc(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} DEC {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} DEC {}", dbg, to_string(instruction.m_op1));
     const auto reg = instruction.m_op1.m_register.value();
 
     if (is_16bit(instruction.m_op1.m_register.value())) {
@@ -1043,7 +956,7 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} ADD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
+    spdlog::trace("{} ADD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
 
     // op1 is always a register
     const auto reg1 = instruction.m_op1.m_register.value();
@@ -1090,7 +1003,7 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_adc(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} ADC A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} ADC A, {}", dbg, to_string(instruction.m_op1));
 
     m_registers.set_n(false);
 
@@ -1108,7 +1021,7 @@ void Cpu::execute_adc(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_sub(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} SUB A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SUB A, {}", dbg, to_string(instruction.m_op1));
 
     const int old_value = m_registers.a;
     const int subtracted_value = decode_u8(instruction.m_op1);
@@ -1122,7 +1035,7 @@ void Cpu::execute_sub(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_sbc(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} SBC A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SBC A, {}", dbg, to_string(instruction.m_op1));
 
     const auto c = m_registers.get_c() ? 1 : 0;
     const int old_value = m_registers.a;
@@ -1137,7 +1050,7 @@ void Cpu::execute_sbc(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_cp(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} CP A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} CP A, {}", dbg, to_string(instruction.m_op1));
 
     const auto a = static_cast<int>(m_registers.a);
     const auto r = static_cast<int>(decode_u8(instruction.m_op1));
@@ -1151,7 +1064,7 @@ void Cpu::execute_cp(const std::string &dbg, const CpuInstruction &instruction) 
 }
 
 void Cpu::execute_and(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} AND A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} AND A, {}", dbg, to_string(instruction.m_op1));
 
     m_registers.a &= decode_u8(instruction.m_op1);
     m_registers.set_z(m_registers.a == 0);
@@ -1161,7 +1074,7 @@ void Cpu::execute_and(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_or(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} OR A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} OR A, {}", dbg, to_string(instruction.m_op1));
 
     const auto data = decode_u8(instruction.m_op1);
     m_registers.a |= data;
@@ -1172,7 +1085,7 @@ void Cpu::execute_or(const std::string &dbg, const CpuInstruction &instruction) 
 }
 
 void Cpu::execute_xor(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} XOR A, {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} XOR A, {}", dbg, to_string(instruction.m_op1));
 
     const auto data = decode_u8(instruction.m_op1);
     m_registers.a ^= data;
@@ -1185,10 +1098,10 @@ void Cpu::execute_xor(const std::string &dbg, const CpuInstruction &instruction)
 void Cpu::execute_jp(const std::string &dbg, const CpuInstruction &instruction) {
     auto jump_type_str = instruction.m_op1.m_type == OperandType::RelativeAddress8pc ? "JR" : "JP";
     if (instruction.m_condition != Condition::None) {
-        spdlog::info("{} {} {}, {}", dbg, jump_type_str, magic_enum::enum_name(instruction.m_condition),
+        spdlog::trace("{} {} {}, {}", dbg, jump_type_str, magic_enum::enum_name(instruction.m_condition),
                      to_string(instruction.m_op1));
     } else {
-        spdlog::info("{} {} {}", dbg, jump_type_str, to_string(instruction.m_op1));
+        spdlog::trace("{} {} {}", dbg, jump_type_str, to_string(instruction.m_op1));
     }
 
     const auto address = decode_address(instruction.m_op1);
@@ -1200,9 +1113,9 @@ void Cpu::execute_jp(const std::string &dbg, const CpuInstruction &instruction) 
 
 void Cpu::execute_call(const std::string &dbg, const CpuInstruction &instruction) {
     if (instruction.m_condition == Condition::None) {
-        spdlog::info("{} CALL {}", dbg, to_string(instruction.m_op1));
+        spdlog::trace("{} CALL {}", dbg, to_string(instruction.m_op1));
     } else {
-        spdlog::info("{} CALL {}, {}", dbg, magic_enum::enum_name(instruction.m_condition),
+        spdlog::trace("{} CALL {}, {}", dbg, magic_enum::enum_name(instruction.m_condition),
                      to_string(instruction.m_op1));
     }
 
@@ -1215,7 +1128,7 @@ void Cpu::execute_call(const std::string &dbg, const CpuInstruction &instruction
 }
 
 void Cpu::execute_rst(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} RST {:02x}", dbg, instruction.m_parameter);
+    spdlog::trace("{} RST {:02x}", dbg, instruction.m_parameter);
 
     stack_push16(m_registers.pc);
     const auto address = instruction.m_parameter;
@@ -1225,9 +1138,9 @@ void Cpu::execute_rst(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_ret(const std::string &dbg, const CpuInstruction &instruction) {
     if (instruction.m_condition != Condition::None) {
-        spdlog::info("{} RET {}", dbg, magic_enum::enum_name(instruction.m_condition));
+        spdlog::trace("{} RET {}", dbg, magic_enum::enum_name(instruction.m_condition));
     } else {
-        spdlog::info("{} RET", dbg);
+        spdlog::trace("{} RET", dbg);
     }
 
     if (m_registers.check_flags(instruction.m_condition)) {
@@ -1237,7 +1150,7 @@ void Cpu::execute_ret(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_reti(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} RETI", dbg);
+    spdlog::trace("{} RETI", dbg);
     m_interrupt_master_enable = true;
     m_registers.pc = stack_pop16();
     m_emulator.add_cycles();
@@ -1245,7 +1158,7 @@ void Cpu::execute_reti(const std::string &dbg, const CpuInstruction &) {
 
 void Cpu::execute_sra(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} SRA {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SRA {}", dbg, to_string(instruction.m_op1));
 
     const u8 input = read_register_u8(reg);
     s8 value_i = static_cast<s8>(input);
@@ -1258,7 +1171,7 @@ void Cpu::execute_sra(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_srl(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} SRL {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SRL {}", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool shifted_bit = get_bit(value, 0);
@@ -1270,7 +1183,7 @@ void Cpu::execute_srl(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_rrc(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} RRC {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} RRC {}", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool rotated_bit = get_bit(value, 0);
@@ -1282,7 +1195,7 @@ void Cpu::execute_rrc(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_rrca(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} RRCA", dbg);
+    spdlog::trace("{} RRCA", dbg);
 
     auto value = m_registers.a;
     const bool rotated_bit = get_bit(value, 0);
@@ -1295,7 +1208,7 @@ void Cpu::execute_rrca(const std::string &dbg, const CpuInstruction &) {
 
 void Cpu::execute_rr(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} RR", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} RR", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool rotated_bit = get_bit(value, 0);
@@ -1307,7 +1220,7 @@ void Cpu::execute_rr(const std::string &dbg, const CpuInstruction &instruction) 
 }
 
 void Cpu::execute_rra(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} RRA", dbg);
+    spdlog::trace("{} RRA", dbg);
 
     auto value = m_registers.a;
     const bool rotated_bit = get_bit(value, 0);
@@ -1320,7 +1233,7 @@ void Cpu::execute_rra(const std::string &dbg, const CpuInstruction &) {
 
 void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} SLA {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SLA {}", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool shifted_bit = get_bit(value, 7);
@@ -1332,7 +1245,7 @@ void Cpu::execute_sla(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} RLC", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} RLC", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool rotated_bit = get_bit(value, 7);
@@ -1344,7 +1257,7 @@ void Cpu::execute_rlc(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_rlca(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} RLCA", dbg);
+    spdlog::trace("{} RLCA", dbg);
 
     auto value = m_registers.a;
     const bool rotated_bit = get_bit(value, 7);
@@ -1357,7 +1270,7 @@ void Cpu::execute_rlca(const std::string &dbg, const CpuInstruction &) {
 
 void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} RL {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} RL {}", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     const bool rotated_bit = get_bit(value, 7);
@@ -1369,7 +1282,7 @@ void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) 
 }
 
 void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} RLA", dbg);
+    spdlog::trace("{} RLA", dbg);
 
     auto value = m_registers.a;
     const bool rotated_bit = get_bit(value, 7);
@@ -1381,38 +1294,38 @@ void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &) {
 }
 
 void Cpu::execute_push(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} PUSH {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} PUSH {}", dbg, to_string(instruction.m_op1));
     stack_push16(decode_u16(instruction.m_op1));
 }
 
 void Cpu::execute_pop(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} POP {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} POP {}", dbg, to_string(instruction.m_op1));
     const auto data = stack_pop16();
     m_registers.set_u16(instruction.m_op1.m_register.value(), data);
 }
 
 void Cpu::execute_scf(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} SCF", dbg);
+    spdlog::trace("{} SCF", dbg);
     m_registers.set_n(false);
     m_registers.set_h(false);
     m_registers.set_c(true);
 }
 
 void Cpu::execute_ccf(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} CCF", dbg);
+    spdlog::trace("{} CCF", dbg);
     m_registers.set_n(false);
     m_registers.set_h(false);
     m_registers.set_c(!m_registers.get_c());
 }
 
 void Cpu::execute_cpl(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} CPL", dbg);
+    spdlog::trace("{} CPL", dbg);
     m_registers.a = ~m_registers.a;
     m_registers.set_n(true);
 }
 
 void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} DAA", dbg);
+    spdlog::trace("{} DAA", dbg);
 
     if (m_registers.get_n()) {
         // Last instruction was a subtraction
@@ -1439,7 +1352,7 @@ void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &) {
 }
 
 void Cpu::execute_bit(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} BIT {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
+    spdlog::trace("{} BIT {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
     const auto value = decode_u8(instruction.m_op1);
     write_register_u8(instruction.m_op1.m_register.value(), value);
     m_registers.set_z(get_bit(value, instruction.m_parameter));
@@ -1448,14 +1361,14 @@ void Cpu::execute_bit(const std::string &dbg, const CpuInstruction &instruction)
 }
 
 void Cpu::execute_set(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} SET {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
+    spdlog::trace("{} SET {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
     auto value = decode_u8(instruction.m_op1);
     set_bit(value, instruction.m_parameter);
     write_register_u8(instruction.m_op1.m_register.value(), value);
 }
 
 void Cpu::execute_res(const std::string &dbg, const CpuInstruction &instruction) {
-    spdlog::info("{} RES {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
+    spdlog::trace("{} RES {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
     auto value = decode_u8(instruction.m_op1);
     set_bit(value, instruction.m_parameter, false);
     write_register_u8(instruction.m_op1.m_register.value(), value);
@@ -1463,7 +1376,7 @@ void Cpu::execute_res(const std::string &dbg, const CpuInstruction &instruction)
 
 void Cpu::execute_swap(const std::string &dbg, const CpuInstruction &instruction) {
     const auto reg = instruction.m_op1.m_register.value();
-    spdlog::info("{} SWAP {}", dbg, to_string(instruction.m_op1));
+    spdlog::trace("{} SWAP {}", dbg, to_string(instruction.m_op1));
 
     auto value = read_register_u8(reg);
     value = (value >> 4) | (value << 4);
@@ -1473,12 +1386,12 @@ void Cpu::execute_swap(const std::string &dbg, const CpuInstruction &instruction
 }
 
 void Cpu::execute_di(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} DI", dbg);
+    spdlog::trace("{} DI", dbg);
     m_interrupt_master_enable = false;
 }
 
 void Cpu::execute_ei(const std::string &dbg, const CpuInstruction &) {
-    spdlog::info("{} EI", dbg);
+    spdlog::trace("{} EI", dbg);
     m_set_interrupt_master_enable_next_cycle = true;
 }
 
@@ -1580,7 +1493,7 @@ u16 Cpu::decode_u16(const OperandDescription &op) {
 
 void Cpu::write_register_u8(const Register reg, const u8 value) {
     if (reg == Register::HL) {
-        const auto address = m_registers.get_u8(Register::HL);
+        const auto address = m_registers.get_u16(Register::HL);
         m_emulator.m_bus.write_u8(address, value);
     } else {
         m_registers.set_u8(reg, value);
@@ -1589,7 +1502,7 @@ void Cpu::write_register_u8(const Register reg, const u8 value) {
 
 u8 Cpu::read_register_u8(const Register reg) const {
     if (reg == Register::HL) {
-        const auto address = m_registers.get_u8(Register::HL);
+        const auto address = m_registers.get_u16(Register::HL);
         return m_emulator.m_bus.read_u8(address);
     }
 
