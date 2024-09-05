@@ -606,25 +606,25 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
 bool Cpu::contains(const u16 address) const { return address == 0xFFFF || address == 0xFF0F; }
 
 u8 Cpu::read_memory(const u16 address) const {
-    if (address == 0xFFFF) {
+    if (address == 0xFF0F) {
         return m_interrupt_request_flags;
     }
 
-    if (address == 0xFF0F) {
-        return m_interrupt_request_flags;
+    if (address == 0xFFFF) {
+        return m_interrupt_enable_flags;
     }
 
     throw UnexpectedAddressError(address);
 }
 
 void Cpu::write_memory(const u16 address, const u8 value) {
-    if (address == 0xFFFF) {
+    if (address == 0xFF0F) {
         m_interrupt_request_flags = value;
         return;
     }
 
-    if (address == 0xFF0F) {
-        m_interrupt_request_flags = value;
+    if (address == 0xFFFF) {
+        m_interrupt_enable_flags = value;
         return;
     }
 
@@ -695,9 +695,9 @@ bool Cpu::step() {
 
         // Exit halt status once an interrupt is set
         // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
-        if (has_pending_interrupt()) {
-            m_halted = true;
-        }
+        // if (has_pending_interrupt()) {
+        m_halted = false;
+        // }
     }
 
     // Handle interrupts
@@ -733,18 +733,18 @@ void Cpu::execute_next_instruction() {
     //     }
     // }
 
-    std::string prefix = "";
-    // !spdlog::should_log(spdlog::level::info)
-    //     ? ""
-    //     : fmt::format(
-    //           "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
-    //           "L={:02x} "
-    //           "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
-    //           ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
-    //           m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
-    //           m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
-    //           m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
-    //           m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
+    std::string prefix =
+        !spdlog::should_log(spdlog::level::info)
+            ? ""
+            : fmt::format(
+                  "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
+                  "L={:02x} "
+                  "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
+                  ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
+                  m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
+                  m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
+                  m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
+                  m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
     spdlog::info("{}", prefix);
 
@@ -932,7 +932,7 @@ void Cpu::execute_stop(const std::string &debug_prefix, const CpuInstruction &) 
 
 void Cpu::execute_halt(const std::string &debug_prefix, const CpuInstruction &) {
     spdlog::info("{} HALT", debug_prefix);
-    throw std::runtime_error("halted");
+    m_halted = true;
 }
 
 void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) {
