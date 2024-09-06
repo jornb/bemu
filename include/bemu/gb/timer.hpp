@@ -2,6 +2,7 @@
 
 #include "types.hpp"
 #include "utils.hpp"
+#include "ram.hpp"
 
 namespace bemu::gb {
 enum class TimerClockType : u8 {
@@ -13,7 +14,7 @@ enum class TimerClockType : u8 {
 
 #pragma pack(push, 1)
 /// Timer and Divider Registers
-struct Timer {
+struct Timer : MemoryRegion<0xFF04, Timer> {
     /// FF04 - DIV: Divider register
     ///
     /// This register is incremented at a rate of 16384Hz (~16779Hz on SGB). Writing any value to this register resets
@@ -62,9 +63,6 @@ struct Timer {
     }
 
     void set_clock_select(TimerClockType select) { m_control = (m_control & ~0b00000011) | static_cast<u8>(select); }
-
-    [[nodiscard]] u8 read(u16 address) const;
-    void write(u16 address, u8 value);
 };
 #pragma pack(pop)
 }  // namespace bemu::gb

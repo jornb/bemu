@@ -27,8 +27,8 @@ u8 Io::read(u16 address) const {
         return m_serial_control;
     }
 
-    if (0xFF04 <= address && address <= 0xFF07) {
-        return m_timer.read(address);
+    if (m_timer.contains(address)) {
+        return m_timer.read_memory(address);
     }
 
     if (m_lcd.contains(address)) {
@@ -62,8 +62,8 @@ void Io::write(u16 address, const u8 value) {
         return;
     }
 
-    if (0xFF04 <= address && address <= 0xFF07) {
-        return m_timer.write(address, value);
+    if (m_timer.contains(address)) {
+        return m_timer.write_memory(address, value);
     }
 
     if (m_lcd.contains(address)) {
