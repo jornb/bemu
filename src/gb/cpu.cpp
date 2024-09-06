@@ -781,7 +781,7 @@ void Cpu::execute_next_instruction() {
                     }
                 }
 
-                spdlog::trace(s);
+                spdlog::warn(s);
             }
         }
     }

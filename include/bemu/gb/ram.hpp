@@ -7,6 +7,24 @@
 namespace bemu::gb {
 
 /// Blob of contiguous data
+template <size_t Begin, typename TStruct>
+struct MemoryRegion {
+    bool contains(const u16 address) const { return Begin <= address && address < Begin + sizeof(TStruct); }
+
+    [[nodiscard]] u8 read_memory(const u16 address) const {
+        auto self = static_cast<const TStruct*>(this);
+        const auto ptr = reinterpret_cast<const u8*>(self);
+        return ptr[address - Begin];
+    }
+
+    void write_memory(const u16 address, const u8 value) {
+        auto self = static_cast<TStruct*>(this);
+        const auto ptr = reinterpret_cast<u8*>(self);
+        ptr[address - Begin] = value;
+    }
+};
+
+/// Blob of contiguous data
 template <size_t Begin, size_t End>
 struct RAM {
     bool contains(const u16 address) const { return Begin <= address && address <= End; }

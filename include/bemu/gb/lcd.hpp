@@ -4,6 +4,7 @@
 #include "lcd.hpp"
 #include "types.hpp"
 #include "utils.hpp"
+#include "ram.hpp"
 
 namespace bemu::gb {
 
@@ -34,7 +35,7 @@ enum class PpuMode : u8 {
 };
 
 #pragma pack(push, 1)
-struct Lcd {
+struct Lcd : MemoryRegion<0xFF40, Lcd> {
     explicit Lcd();
 
     /// FF40 - LCDC: LCD control
@@ -70,8 +71,6 @@ struct Lcd {
     u32 sp1_colors[4];
     u32 sp2_colors[4];
 
-    [[nodiscard]] bool contains(u16 address) const;
-    [[nodiscard]] u8 read_memory(u16 address) const;
     void write_memory(u16 address, u8 value);
 
     /// When Bit 0 is cleared, both background and window become blank (white), and the Window Display Bit is ignored in

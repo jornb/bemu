@@ -12,17 +12,6 @@ Lcd::Lcd() {
     }
 }
 
-
-bool Lcd::contains(u16 address) const {
-    return 0xFF40 <= address && address <= 0xFF40 + sizeof(Lcd);
-}
-
-u8 Lcd::read_memory(u16 address) const {
-    const u16 offset = address - 0xFF40;
-    const auto ptr = reinterpret_cast<const u8*>(this);
-    return ptr[offset];
-}
-
 // void update_palette(u8 palette_data, u8 pal) {
 //     u32 *p_colors = ctx.bg_colors;
 //
@@ -48,9 +37,7 @@ void Lcd::write_memory(const u16 address, const u8 value) {
         return;
     }
 
-    const u16 offset = address - 0xFF40;
-    const auto ptr = reinterpret_cast<u8*>(this);
-    ptr[offset] = value;
+    MemoryRegion::write_memory(address, value);
 
     // if (address == 0xFF47) {
     //     update_palette(value, 0);
@@ -60,4 +47,3 @@ void Lcd::write_memory(const u16 address, const u8 value) {
     //     update_palette(value & 0b11111100, 2);
     // }
 }
-
