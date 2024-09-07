@@ -46,6 +46,9 @@ struct OamEntry {
 
     u8 m_flags = 0;
 
+    [[nodiscard]] int get_screen_x() const { return  m_x - 8; }
+    [[nodiscard]] int get_screen_y() const { return  m_y - 16; }
+
     /// GBC only: Which of OBP0-7 to use
     [[nodiscard]] u8 get_palette() const { return m_flags & 0b111; }
 
@@ -95,7 +98,7 @@ struct Ppu {
     RAM<0x8000, 0x9FFF> m_vram;
 
     explicit Ppu(Bus &bus, Lcd &lcd, Screen &screen, Cpu &cpu)
-        : m_bus(bus), m_lcd(lcd), m_screen(screen), m_cpu(cpu), m_oam_dma(bus, m_oam) {}
+        : m_bus(bus), m_lcd(lcd), m_screen(screen), m_cpu(cpu), m_oam_dma(m_bus, m_oam) {}
 
     [[nodiscard]] bool contains(u16 address) const;
     [[nodiscard]] u8 read(u16 address) const;
@@ -116,6 +119,8 @@ struct Ppu {
     void render_scanline_window();
     void render_scanline_objects();
 
+    void draw_output_screen();
+
     [[nodiscard]] u16 get_line_tick() const;
     [[nodiscard]] u16 get_line_number() const;
 
@@ -129,7 +134,7 @@ struct Ppu {
     DmaState m_oam_dma;
 
     u64 m_frame_number = 0;
-    u32 m_frame_tick = -1;  ///< Dot tick within current frame
+    u32 m_frame_tick = 0;  ///< Dot tick within current frame
 };
 
 }  // namespace bemu::gb

@@ -31,7 +31,7 @@ u8 get_tile_px(const Bus &bus, const u16 start_address, const size_t local_x, co
 }
 }  // namespace
 
-bool DmaState::contains(u16 address) const { return address == 0xFF46; }
+bool DmaState::contains(const u16 address) const { return address == 0xFF46; }
 
 u8 DmaState::read(u16) const { return m_written_value; }
 
@@ -43,6 +43,11 @@ void DmaState::write(u16, const u8 value) {
 }
 
 void DmaState::cycle_tick() {
+    static Bus *bus = &m_bus;
+    if (&m_bus != bus) {
+        throw std::runtime_error("Bus has changed!");
+    }
+
     if (!m_active) return;
 
     if (m_start_delay > 0) {
@@ -55,7 +60,11 @@ void DmaState::cycle_tick() {
     ++m_current_byte;
 
     const auto data = m_bus.read_u8(source_address, false);
-    m_oam.write_memory(destination_address, data);
+    if (!m_oam.contains(destination_address)) {
+        m_active = false;
+    } else {
+        m_oam.write_memory(destination_address, data);
+    }
 }
 
 bool Ppu::contains(const u16 address) const {
@@ -67,12 +76,14 @@ u8 Ppu::read(const u16 address) const {
         return m_oam_dma.read(address);
     }
 
+    // When LCD/PPU is not on, all memory is accessible
+    const auto allow_all = !m_lcd.get_enable_lcd_and_ppu();
     const auto mode = m_lcd.get_ppu_mode();
-    if (mode == PpuMode::Drawing) {
+    if (!allow_all && mode == PpuMode::Drawing) {
         return 0xFF;
     }
 
-    if (m_oam.contains(address) && mode == PpuMode::OamScan) {
+    if (m_oam.contains(address) && (allow_all || mode == PpuMode::OamScan)) {
         return 0xFF;
     }
 
@@ -92,12 +103,14 @@ void Ppu::write(const u16 address, const u8 value) {
         return m_oam_dma.write(address, value);
     }
 
+    // When LCD/PPU is not on, all memory is accessible
+    const auto allow_all = !m_lcd.get_enable_lcd_and_ppu();
     const auto mode = m_lcd.get_ppu_mode();
-    if (mode == PpuMode::Drawing) {
+    if (!allow_all && mode == PpuMode::Drawing) {
         return;
     }
 
-    if (m_oam.contains(address) && mode == PpuMode::OamScan) {
+    if (m_oam.contains(address) && (allow_all || mode == PpuMode::OamScan)) {
         return;
     }
 
@@ -143,6 +156,8 @@ void Ppu::dot_tick() {
     if (m_frame_tick == 0) {
         m_frame_number++;
         // spdlog::info("m_frame_number = {}", m_frame_number);
+
+        draw_output_screen();
     }
 
     // Check for ly compare
@@ -161,6 +176,7 @@ void Ppu::cycle_tick() { m_oam_dma.cycle_tick(); }
 
 void Ppu::dot_tick_handle_and_get_next_mode() {
     const auto line_tick = get_line_tick();
+    const auto y = get_line_number();
 
     // Start of VBlank period
     if (m_frame_tick == screen_height * dots_per_line - 1) {
@@ -315,12 +331,12 @@ void Ppu::render_scanline_objects() {
             const auto &object = *line_objects[i_object];
 
             // All objects are 8 px wide
-            auto local_x = x - object.m_x;
+            auto local_x = x - object.get_screen_x();
             if (local_x < 0 || local_x >= 8) {
                 continue;
             }
 
-            auto local_y = y - object.m_y;
+            auto local_y = y - object.get_screen_y();
             if (local_y < 0 || local_y >= m_lcd.get_object_height()) {
                 throw std::runtime_error("render_scanline_objects");
             }
@@ -341,5 +357,25 @@ void Ppu::render_scanline_objects() {
             const auto tile_pixel = get_tile_px(m_bus, 0x8000 + 16 * object.m_tile_index, local_x, local_y);
             m_screen.set_pixel(x, y, tile_pixel);
         }
+    }
+}
+
+void Ppu::draw_output_screen() {
+    for (int i = 0; i < m_screen.screen_height; ++i) {
+        std::string s;
+        for (int c = 0; c < m_screen.screen_width; ++c) {
+            const auto b = m_screen.m_pixels[i][c];
+            if (b == 0) {
+                s += "  ";
+            } else if (b == 1) {
+                s += "--";
+            } else if (b == 2) {
+                s += "xx";
+            } else if (b == 3) {
+                s += "##";
+            }
+        }
+
+        spdlog::warn(s);
     }
 }

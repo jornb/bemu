@@ -13,19 +13,19 @@ enum class PpuMode : u8 {
     ///
     /// Duration: 376 - Drawing mode duration
     /// Accessible video memory: VRAM, OAM, CGB palettes
-    HorizontalBlank,
+    HorizontalBlank = 0b00,
 
     /// Waiting until the next frame
     ///
     /// Duration: 4560 dots (10 scanlines)
     /// Accessible video memory: VRAM, OAM, CGB palettes
-    VerticalBlank,
+    VerticalBlank = 0b01,
 
     /// Searching for OBJs which overlap this line
     ///
     /// Duration: 10 dots
     /// Accessible video memory: VRAM, CGB palettes
-    OamScan,
+    OamScan = 0b10,
 
     /// Sending pixels to the LCD
     ///
@@ -44,7 +44,7 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     u8 m_control = 0x91;
 
     /// FF41 - STAT: LCD status
-    u8 m_status = 0;
+    u8 m_status = static_cast<u8>(PpuMode::OamScan); // Start in OAM scan mode
 
     /// FF42, FF43 - SCY, SCX: Background viewport Y position, X position
     u8 scroll_y = 0;

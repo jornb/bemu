@@ -725,22 +725,28 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
+    spdlog::set_level(spdlog::level::trace);
+
     std::string prefix =
-        /*!spdlog::should_log(spdlog::level::trace)
+        !spdlog::should_log(spdlog::level::trace)
             ? ""
-            :*/
-        fmt::format(
-            "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
-            "L={:02x} "
-            "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
-            ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c, m_registers.d,
-            m_registers.e, m_registers.h, m_registers.l, m_registers.sp, m_registers.get_z() ? "Z" : "-",
-            m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-", m_registers.get_c() ? "C" : "-", opcode,
-            m_emulator.m_bus.read_u8(m_registers.pc, false), m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
+            : fmt::format(
+                  "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
+                  "L={:02x} "
+                  "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
+                  ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
+                  m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
+                  m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
+                  m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
+                  m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
     spdlog::trace("{}", prefix);
 
     // This is where the error happens
+    if (pc == 0x01D4) {
+        spdlog::trace("Tracepoint: {}", prefix);
+    }
+
     if (pc == 0x021c) {
         spdlog::trace("Tracepoint: {}", prefix);
     }
@@ -756,34 +762,34 @@ void Cpu::execute_next_instruction() {
     if (pc == 0x0296) {
         spdlog::trace("Tracepoint: {}", prefix);
 
-        // Render
-        {
-            constexpr size_t nx = 16;
-            constexpr size_t ny = 8 * 3;
-            RenderTarget<8 * nx, 8 * ny> render;
-            for (size_t x = 0; x < nx; ++x) {
-                for (size_t y = 0; y < ny; ++y) {
-                    render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
-                }
-            }
-            for (u8 i = 0; i < render.screen_height; ++i) {
-                std::string s;
-                for (u8 c = 0; c < render.screen_width; ++c) {
-                    const auto b = render.m_pixels[i][c];
-                    if (b == 0) {
-                        s += "  ";
-                    } else if (b == 1) {
-                        s += "--";
-                    } else if (b == 2) {
-                        s += "xx";
-                    } else if (b == 3) {
-                        s += "##";
-                    }
-                }
-
-                spdlog::warn(s);
-            }
-        }
+        // // Render
+        // {
+        //     constexpr size_t nx = 16;
+        //     constexpr size_t ny = 8 * 3;
+        //     RenderTarget<8 * nx, 8 * ny> render;
+        //     for (size_t x = 0; x < nx; ++x) {
+        //         for (size_t y = 0; y < ny; ++y) {
+        //             render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
+        //         }
+        //     }
+        //     for (u8 i = 0; i < render.screen_height; ++i) {
+        //         std::string s;
+        //         for (u8 c = 0; c < render.screen_width; ++c) {
+        //             const auto b = render.m_pixels[i][c];
+        //             if (b == 0) {
+        //                 s += "  ";
+        //             } else if (b == 1) {
+        //                 s += "--";
+        //             } else if (b == 2) {
+        //                 s += "xx";
+        //             } else if (b == 3) {
+        //                 s += "##";
+        //             }
+        //         }
+        //
+        //         spdlog::warn(s);
+        //     }
+        // }
     }
 
     if (pc == 0x47f2) {

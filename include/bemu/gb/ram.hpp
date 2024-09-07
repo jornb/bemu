@@ -1,6 +1,7 @@
 #pragma once
 
 #include <array>
+#include <stdexcept>
 
 #include "types.hpp"
 
@@ -12,12 +13,18 @@ struct MemoryRegion {
     bool contains(const u16 address) const { return Begin <= address && address < Begin + sizeof(TStruct); }
 
     [[nodiscard]] u8 read_memory(const u16 address) const {
+        if (address < Begin || address >= Begin + sizeof(TStruct)) {
+            throw std::runtime_error("Invalid memory access");
+        }
         auto self = static_cast<const TStruct*>(this);
         const auto ptr = reinterpret_cast<const u8*>(self);
         return ptr[address - Begin];
     }
 
     void write_memory(const u16 address, const u8 value) {
+        if (address < Begin || address >= Begin + sizeof(TStruct)) {
+            throw std::runtime_error("Invalid memory access");
+        }
         auto self = static_cast<TStruct*>(this);
         const auto ptr = reinterpret_cast<u8*>(self);
         ptr[address - Begin] = value;
