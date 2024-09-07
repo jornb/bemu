@@ -55,7 +55,7 @@ void DmaState::cycle_tick() {
     ++m_current_byte;
 
     const auto data = m_bus.read_u8(source_address, false);
-    m_bus.write_u8(destination_address, data, false);
+    m_oam.write_memory(destination_address, data);
 }
 
 bool Ppu::contains(const u16 address) const {

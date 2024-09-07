@@ -13,22 +13,6 @@ struct Bus;
 struct Cpu;
 struct Screen;
 
-struct DmaState {
-    Bus &m_bus;
-
-    [[nodiscard]] bool contains(u16 address) const;
-    [[nodiscard]] u8 read(u16 address) const;
-    void write(u16 address, u8 value);
-
-    void cycle_tick();
-
-    bool m_active = false;
-    u8 m_start_delay = 0;
-    u8 m_written_value = 0;
-    u8 m_current_byte = 0;
-    bool m_transferring = false;
-};
-
 #pragma pack(push, 1)
 struct OamEntry {
     /// Byte 0 - Y Position
@@ -86,6 +70,23 @@ struct OamRam : MemoryRegion<0xFE00, OamRam> {
 };
 #pragma pack(pop)
 
+struct DmaState {
+    Bus &m_bus;
+    OamRam &m_oam;  ///< DMA can access the OAM, regardless of PPU state
+
+    [[nodiscard]] bool contains(u16 address) const;
+    [[nodiscard]] u8 read(u16 address) const;
+    void write(u16 address, u8 value);
+
+    void cycle_tick();
+
+    bool m_active = false;
+    u8 m_start_delay = 0;
+    u8 m_written_value = 0;
+    u8 m_current_byte = 0;
+    bool m_transferring = false;
+};
+
 struct Ppu {
     Bus &m_bus;
     Lcd &m_lcd;
@@ -94,7 +95,7 @@ struct Ppu {
     RAM<0x8000, 0x9FFF> m_vram;
 
     explicit Ppu(Bus &bus, Lcd &lcd, Screen &screen, Cpu &cpu)
-        : m_bus(bus), m_lcd(lcd), m_screen(screen), m_cpu(cpu), m_oam_dma(bus) {}
+        : m_bus(bus), m_lcd(lcd), m_screen(screen), m_cpu(cpu), m_oam_dma(bus, m_oam) {}
 
     [[nodiscard]] bool contains(u16 address) const;
     [[nodiscard]] u8 read(u16 address) const;
@@ -128,7 +129,7 @@ struct Ppu {
     DmaState m_oam_dma;
 
     u64 m_frame_number = 0;
-    u32 m_frame_tick = 1;  ///< Dot tick within current frame
+    u32 m_frame_tick = -1;  ///< Dot tick within current frame
 };
 
 }  // namespace bemu::gb
