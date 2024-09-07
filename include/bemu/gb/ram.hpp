@@ -34,6 +34,8 @@ struct MemoryRegion {
 /// Blob of contiguous data
 template <size_t Begin, size_t End>
 struct RAM {
+    constexpr static size_t first_address = Begin;
+
     bool contains(const u16 address) const { return Begin <= address && address <= End; }
 
     [[nodiscard]] u8 read(const u16 address) const { return m_data.at(address - Begin); }

@@ -44,7 +44,7 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     u8 m_control = 0x91;
 
     /// FF41 - STAT: LCD status
-    u8 m_status = static_cast<u8>(PpuMode::OamScan); // Start in OAM scan mode
+    u8 m_status = static_cast<u8>(PpuMode::OamScan);  // Start in OAM scan mode
 
     /// FF42, FF43 - SCY, SCX: Background viewport Y position, X position
     u8 scroll_y = 0;
@@ -63,8 +63,8 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     u8 dma = 0;
     u8 bg_palette = 0xFC;
     u8 obj_palette[2] = {0xFF, 0xFF};
-    u8 win_y = 0;
-    u8 win_x = 0;
+    u8 window_y = 0;
+    u8 window_x = 0;
 
     // other data...
     u32 bg_colors[4];
@@ -94,11 +94,15 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     /// \return 16 or 8
     [[nodiscard]] u8 get_object_height() const { return get_bit(m_control, 2) ? 16 : 8; }
 
-    /// This bit works similarly to LCDC bit 6: if the bit is clear (0), the BG uses tilemap $9800, otherwise tilemap
-    /// $9C00.
+    /// This bit controls which background map the background uses for rendering. If the bit is clear (0), the BG uses
+    /// tilemap $9800, otherwise tilemap $9C00.
+    ///
+    /// The map is a row-major 32x32 list of u8 tile IDs, creating a 256x256 image.
     [[nodiscard]] u16 get_background_tile_map_start_address() const { return get_bit(m_control, 3) ? 0x9C00 : 0x9800; }
 
     /// This bit controls which addressing mode the BG and Window use to pick tiles.
+    ///
+    /// Points to the actual 8x8 tiles.
     ///
     /// Objects (sprites) aren’t affected by this, and will always use the $8000 addressing mode.
     [[nodiscard]] u16 get_background_and_window_tile_data_start_address() const {
@@ -114,9 +118,10 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     ///           be ignored.
     [[nodiscard]] bool get_window_enable() const { return get_bit(m_control, 5); }
 
-    /// This bit controls which addressing mode the BG and Window use to pick tiles.
+    /// This bit controls which background map the Window uses for rendering. When it’s clear (0), the $9800 tilemap is
+    /// used, otherwise it’s the $9C00 one.
     ///
-    /// Objects (sprites) aren’t affected by this, and will always use the $8000 addressing mode.
+    /// The map is a row-major 32x32 list of u8 tile IDs, creating a 256x256 image.
     [[nodiscard]] u16 get_window_tile_map_start_address() const { return get_bit(m_control, 6) ? 0x9C00 : 0x9800; }
 
     /// This bit controls whether the LCD is on and the PPU is active. Setting it to 0 turns both off, which grants

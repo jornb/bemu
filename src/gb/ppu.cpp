@@ -159,7 +159,8 @@ void Ppu::dot_tick() {
 
         draw_output_screen();
 
-        m_screen.clear();
+        if (!m_screen.empty())
+            m_screen.clear();
     }
 
     // Check for ly compare
@@ -320,9 +321,55 @@ void Ppu::render_scanline() {
     }
 }
 
-void Ppu::render_scanline_background() {}
+void Ppu::render_scanline_background() {
+    // Get the tile set in which the actual 8x8 tiles are stored
+    const auto tile_set_address = m_lcd.get_background_and_window_tile_data_start_address();
 
-void Ppu::render_scanline_window() {}
+    // Get the tile map, containing the IDs of 32x32
+    const auto tile_map_address = m_lcd.get_background_tile_map_start_address();
+
+    const auto screen_y = get_line_number();
+
+    for (int screen_x = 0; screen_x < screen_width; ++screen_x) {
+        // Apply scroll offset
+        const auto scrolled_x = screen_x + m_lcd.scroll_x;
+        const auto scrolled_y = screen_y + m_lcd.scroll_y;
+
+        // Background wraps around at 256
+        const auto background_map_x = scrolled_x % 256;
+        const auto background_map_y = scrolled_y % 256;
+
+        // Find the 8x8 tile in the background map
+        const auto tile_x = background_map_x / 8;
+        const auto tile_y = background_map_y / 8;
+
+        // Find the pixel within the tile
+        const auto local_x = background_map_x % 8;
+        const auto local_y = background_map_y % 8;
+
+        // Tiles IDs are stored row-major with 32 tiles each
+        const auto tile_id_index = tile_x + tile_y * 32;
+        const auto encoded_tile_id = m_vram.read(tile_map_address + tile_id_index);
+
+        // For "8800 addressing method", the tile id is signed. Otherwise, unsigned.
+        const auto signed_tile_address = tile_set_address == 0x8800;
+        const auto tile_id = signed_tile_address ? (static_cast<s8>(encoded_tile_id) + 128) : encoded_tile_id;
+
+        // Each tile occupies 16 bytes (8 lines of 2 bytes each)
+        const auto tile_address = tile_set_address + tile_id * 16;
+
+        const u8 *tile_data = m_vram.data() + (tile_address - m_vram.first_address);
+        const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
+        m_screen.set_pixel(screen_x, screen_y, tile_pixel);
+
+        // TODO GBC: Something about flipped x/y background tiles?
+    }
+}
+
+void Ppu::render_scanline_window() {
+    auto tile_set_address = m_lcd.get_background_and_window_tile_data_start_address();
+    auto tile_map_address = m_lcd.get_window_tile_map_start_address();
+}
 
 void Ppu::render_scanline_objects() {
     const auto line_objects = load_line_objects();
@@ -331,7 +378,7 @@ void Ppu::render_scanline_objects() {
     for (size_t i_object = 0; i_object < line_objects.size(); ++i_object) {
         const auto &object = *line_objects[i_object];
 
-        for (int x = 0; x < Screen::screen_width; ++x) {
+        for (int x = 0; x < screen_width; ++x) {
             // All objects are 8 px wide
             auto local_x = x - object.get_screen_x();
             if (local_x < 0 || local_x >= 8) {
@@ -358,9 +405,9 @@ void Ppu::render_scanline_objects() {
 
             const u8 *tile_data = m_vram.data() + 16 * object.m_tile_index;
             const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
-            spdlog::error("Tile {:02x} @ {}, {} (height is {}). Setting {}, {}  ({}, {}) = {}", object.m_tile_index,
-                          object.get_screen_x(), object.get_screen_y(), m_lcd.get_object_height(), x, y, local_x,
-                          local_y, tile_pixel);
+            // spdlog::error("Tile {:02x} @ {}, {} (height is {}). Setting {}, {}  ({}, {}) = {}", object.m_tile_index,
+            //               object.get_screen_x(), object.get_screen_y(), m_lcd.get_object_height(), x, y, local_x,
+            //               local_y, tile_pixel);
             m_screen.set_pixel(x, y, tile_pixel);
         }
     }
@@ -374,13 +421,13 @@ void Ppu::draw_output_screen() {
         for (int x = 0; x < m_screen.screen_width; ++x) {
             const auto b = m_screen.get_pixel(x, y);
             if (b == 0) {
-                s += " ";
+                s += "  ";
             } else if (b == 1) {
-                s += "-";
+                s += "--";
             } else if (b == 2) {
-                s += "x";
+                s += "xx";
             } else if (b == 3) {
-                s += "#";
+                s += "##";
             }
         }
 
