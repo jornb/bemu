@@ -17,8 +17,8 @@ u8 get_tile_px(const Bus &bus, const u16 start_address, const size_t local_x, co
     // A tile is 16 bytes, where each line is 2 bytes
     const u16 line_address = start_address + local_y * 2;
 
-    const auto byte_1 = bus.read_u8(line_address);
-    const auto byte_2 = bus.read_u8(line_address + 1);
+    const auto byte_1 = bus.read_u8(line_address, false);
+    const auto byte_2 = bus.read_u8(line_address + 1, false);
 
     const auto bit_1 = get_bit(byte_1, 7 - local_x);  // Bit 7 represents the left-most pixel
     const auto bit_2 = get_bit(byte_2, 7 - local_x);
@@ -260,9 +260,6 @@ u16 Ppu::get_line_number() const { return m_frame_tick / dots_per_line; }
 
 std::vector<const OamEntry *> Ppu::load_line_objects() {
     std::vector<const OamEntry *> line_objects;
-    line_objects.reserve(10);
-
-    line_objects.clear();
     line_objects.reserve(10);
 
     const auto ly = get_line_number();

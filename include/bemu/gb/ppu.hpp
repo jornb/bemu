@@ -128,7 +128,7 @@ struct Ppu {
     DmaState m_oam_dma;
 
     u64 m_frame_number = 0;
-    u32 m_frame_tick = -1;  ///< Dot tick within current frame
+    u32 m_frame_tick = 1;  ///< Dot tick within current frame
 };
 
 }  // namespace bemu::gb
