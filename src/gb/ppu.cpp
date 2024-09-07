@@ -13,12 +13,12 @@ constexpr u16 dots_per_oam_scan = 80;
 constexpr u16 dots_per_line = 456;
 constexpr u32 dots_per_frame = 70224;
 
-u8 get_tile_px(const Bus &bus, const u16 start_address, const size_t local_x, const size_t local_y) {
+u8 get_tile_px(const u8 *tile_data, const size_t local_x, const size_t local_y) {
     // A tile is 16 bytes, where each line is 2 bytes
-    const u16 line_address = start_address + local_y * 2;
+    const u16 line_address = local_y * 2;
 
-    const auto byte_1 = bus.read_u8(line_address, false);
-    const auto byte_2 = bus.read_u8(line_address + 1, false);
+    const auto byte_1 = tile_data[line_address];
+    const auto byte_2 = tile_data[line_address + 1];
 
     const auto bit_1 = get_bit(byte_1, 7 - local_x);  // Bit 7 represents the left-most pixel
     const auto bit_2 = get_bit(byte_2, 7 - local_x);
@@ -158,6 +158,8 @@ void Ppu::dot_tick() {
         // spdlog::info("m_frame_number = {}", m_frame_number);
 
         draw_output_screen();
+
+        m_screen.clear();
     }
 
     // Check for ly compare
@@ -283,7 +285,7 @@ std::vector<const OamEntry *> Ppu::load_line_objects() {
 
     for (const auto &object : m_oam.m_entries) {
         // y pixel is stored -16
-        const auto y_start = object.m_y - 16;
+        const auto y_start = object.get_screen_y();
         const auto y_end = y_start + object_height;
 
         if (y_start <= ly && ly < y_end) {
@@ -326,10 +328,10 @@ void Ppu::render_scanline_objects() {
     const auto line_objects = load_line_objects();
     auto y = get_line_number();
 
-    for (int x = 0; x < Screen::screen_width; ++x) {
-        for (size_t i_object = 0; i_object < line_objects.size(); ++i_object) {
-            const auto &object = *line_objects[i_object];
+    for (size_t i_object = 0; i_object < line_objects.size(); ++i_object) {
+        const auto &object = *line_objects[i_object];
 
+        for (int x = 0; x < Screen::screen_width; ++x) {
             // All objects are 8 px wide
             auto local_x = x - object.get_screen_x();
             if (local_x < 0 || local_x >= 8) {
@@ -354,25 +356,31 @@ void Ppu::render_scanline_objects() {
                 continue;
             }
 
-            const auto tile_pixel = get_tile_px(m_bus, 0x8000 + 16 * object.m_tile_index, local_x, local_y);
+            const u8 *tile_data = m_vram.data() + 16 * object.m_tile_index;
+            const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
+            spdlog::error("Tile {:02x} @ {}, {} (height is {}). Setting {}, {}  ({}, {}) = {}", object.m_tile_index,
+                          object.get_screen_x(), object.get_screen_y(), m_lcd.get_object_height(), x, y, local_x,
+                          local_y, tile_pixel);
             m_screen.set_pixel(x, y, tile_pixel);
         }
     }
 }
 
 void Ppu::draw_output_screen() {
-    for (int i = 0; i < m_screen.screen_height; ++i) {
+    // if (!m_lcd.get_enable_lcd_and_ppu()) return;
+
+    for (int y = 0; y < m_screen.screen_height; ++y) {
         std::string s;
-        for (int c = 0; c < m_screen.screen_width; ++c) {
-            const auto b = m_screen.m_pixels[i][c];
+        for (int x = 0; x < m_screen.screen_width; ++x) {
+            const auto b = m_screen.get_pixel(x, y);
             if (b == 0) {
-                s += "  ";
+                s += " ";
             } else if (b == 1) {
-                s += "--";
+                s += "-";
             } else if (b == 2) {
-                s += "xx";
+                s += "x";
             } else if (b == 3) {
-                s += "##";
+                s += "#";
             }
         }
 

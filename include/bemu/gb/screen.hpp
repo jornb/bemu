@@ -15,7 +15,9 @@ struct RenderTarget {
 
     u8 get_pixel(int x, int y) { return m_pixels[y][x]; }
 
-    void set_pixel(int x, int y, u8 pixel) { m_pixels[y][x] = pixel; }
+    void set_pixel(int x, int y, u8 pixel) {
+        m_pixels[y][x] = pixel;
+    }
 
     void render_tile(const u8 *tile_data, const size_t target_top_left_x, const size_t target_top_left_y) {
         u16 current_address = 0;
@@ -37,7 +39,9 @@ struct RenderTarget {
         }
     }
 
-    void clear() { m_pixels = {}; }
+    void clear() {
+        m_pixels = {};
+    }
 };
 
 struct Screen : RenderTarget<screen_width, screen_height> {};
