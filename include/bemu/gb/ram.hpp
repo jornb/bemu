@@ -33,6 +33,8 @@ struct RAM {
 
     void write(const u16 address, const u8 value) { m_data.at(address - Begin) = value; }
 
+    const u8* data() { return m_data.data(); }
+
    private:
     std::array<u8, End - Begin + 1> m_data;
 };

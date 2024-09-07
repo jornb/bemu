@@ -728,15 +728,15 @@ void Cpu::execute_next_instruction() {
     std::string prefix =
         /*!spdlog::should_log(spdlog::level::trace)
             ? ""
-            :*/ fmt::format(
-                  "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
-                  "L={:02x} "
-                  "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
-                  ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
-                  m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
-                  m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
-                  m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
-                  m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
+            :*/
+        fmt::format(
+            "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
+            "L={:02x} "
+            "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
+            ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c, m_registers.d,
+            m_registers.e, m_registers.h, m_registers.l, m_registers.sp, m_registers.get_z() ? "Z" : "-",
+            m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-", m_registers.get_c() ? "C" : "-", opcode,
+            m_emulator.m_bus.read_u8(m_registers.pc, false), m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
     last_ticks = ticks;
     spdlog::trace("{}", prefix);
 
@@ -763,7 +763,7 @@ void Cpu::execute_next_instruction() {
             RenderTarget<8 * nx, 8 * ny> render;
             for (size_t x = 0; x < nx; ++x) {
                 for (size_t y = 0; y < ny; ++y) {
-                    render.render_tile(m_emulator.m_bus, 0x8000 + x * 0x10 + y * 0x100, 8 * x, 8 * y);
+                    render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
                 }
             }
             for (u8 i = 0; i < render.screen_height; ++i) {
@@ -818,8 +818,7 @@ void Cpu::execute_interrupts() {
             // Disable interrupts immediately
             m_interrupt_master_enable = false;
 
-            if (m_halted)
-                spdlog::info("Unhalted");
+            if (m_halted) spdlog::info("Unhalted");
             m_halted = false;  // TODO: Remove?
             // spdlog::info("Unhalted");
 
@@ -1099,7 +1098,7 @@ void Cpu::execute_jp(const std::string &dbg, const CpuInstruction &instruction) 
     auto jump_type_str = instruction.m_op1.m_type == OperandType::RelativeAddress8pc ? "JR" : "JP";
     if (instruction.m_condition != Condition::None) {
         spdlog::trace("{} {} {}, {}", dbg, jump_type_str, magic_enum::enum_name(instruction.m_condition),
-                     to_string(instruction.m_op1));
+                      to_string(instruction.m_op1));
     } else {
         spdlog::trace("{} {} {}", dbg, jump_type_str, to_string(instruction.m_op1));
     }
@@ -1116,7 +1115,7 @@ void Cpu::execute_call(const std::string &dbg, const CpuInstruction &instruction
         spdlog::trace("{} CALL {}", dbg, to_string(instruction.m_op1));
     } else {
         spdlog::trace("{} CALL {}, {}", dbg, magic_enum::enum_name(instruction.m_condition),
-                     to_string(instruction.m_op1));
+                      to_string(instruction.m_op1));
     }
 
     const auto address = decode_address(instruction.m_op1);

@@ -17,11 +17,11 @@ struct RenderTarget {
 
     void set_pixel(int x, int y, u8 pixel) { m_pixels[y][x] = pixel; }
 
-    void render_tile(Bus &bus, const u16 start_address, size_t target_top_left_x, size_t target_top_left_y) {
-        u16 current_address = start_address;
+    void render_tile(const u8 *tile_data, const size_t target_top_left_x, const size_t target_top_left_y) {
+        u16 current_address = 0;
         for (size_t line = 0; line < 8; ++line) {
-            const auto byte_1 = bus.read_u8(current_address++);
-            const auto byte_2 = bus.read_u8(current_address++);
+            const auto byte_1 = tile_data[current_address++];
+            const auto byte_2 = tile_data[current_address++];
 
             for (size_t column = 0; column < 8; ++column) {
                 // 7 is the left-most pixel

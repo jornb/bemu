@@ -91,6 +91,7 @@ struct Ppu {
     Lcd &m_lcd;
     Screen &m_screen;
     Cpu &m_cpu;
+    RAM<0x8000, 0x9FFF> m_vram;
 
     explicit Ppu(Bus &bus, Lcd &lcd, Screen &screen, Cpu &cpu)
         : m_bus(bus), m_lcd(lcd), m_screen(screen), m_cpu(cpu), m_oam_dma(bus) {}
@@ -124,7 +125,6 @@ struct Ppu {
     std::vector<const OamEntry *> load_line_objects();
 
     OamRam m_oam;
-    RAM<0x8000, 0x9FFF> m_vram;
     DmaState m_oam_dma;
 
     u64 m_frame_number = 0;
