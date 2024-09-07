@@ -194,7 +194,7 @@ void Ppu::dot_tick_handle_and_get_next_mode() {
         render_scanline();
     }
 
-    if (line_tick == dots_per_oam_scan + 250 - 1) {
+    if (line_tick == dots_per_oam_scan + 289 - 1) {
         // TODO: Calculate length of mode 3. 172-289 dots. See https://gbdev.io/pandocs/Rendering.html#mode-3-length
 
         // Start of Mode 0: Horizontal blank
