@@ -11,4 +11,7 @@ using s8 = int8_t;
 using s16 = int16_t;
 using s32 = int32_t;
 using s64 = int64_t;
+
+constexpr u8 screen_width = 144;
+constexpr u8 screen_height = 160;
 }  // namespace bemu::gb

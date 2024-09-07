@@ -13,6 +13,10 @@ struct RenderTarget {
     constexpr static int screen_height = Height;
     std::array<std::array<u8, screen_width>, screen_height> m_pixels{};
 
+    u8 get_pixel(int x, int y) { return m_pixels[y][x]; }
+
+    void set_pixel(int x, int y, u8 pixel) { m_pixels[y][x] = pixel; }
+
     void render_tile(Bus &bus, const u16 start_address, size_t target_top_left_x, size_t target_top_left_y) {
         u16 current_address = start_address;
         for (size_t line = 0; line < 8; ++line) {
@@ -32,7 +36,9 @@ struct RenderTarget {
             }
         }
     }
+
+    void clear() { m_pixels = {}; }
 };
 
-struct Screen : RenderTarget<160, 144> {};
+struct Screen : RenderTarget<screen_width, screen_height> {};
 }  // namespace bemu::gb

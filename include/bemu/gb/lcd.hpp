@@ -2,9 +2,9 @@
 #pragma once
 
 #include "lcd.hpp"
+#include "ram.hpp"
 #include "types.hpp"
 #include "utils.hpp"
-#include "ram.hpp"
 
 namespace bemu::gb {
 
@@ -86,11 +86,13 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
 
     /// This bit controls the size of all objects (1 tile or 2 stacked vertically).
     ///
-    /// Be cautious when changing object size mid-frame. Changing from 8×8 to 8×16 pixels mid-frame within 8 scanlines
+    /// Be cautious when changing object size mid-frame. Changing from 8x8 to 8x16 pixels mid-frame within 8 scanlines
     /// of the bottom of an object causes the object’s second tile to be visible for the rest of those 8 lines. If the
     /// size is changed during mode 2 or 3, remnants of objects in range could “leak” into the other tile and cause
     /// artifacts.
-    [[nodiscard]] bool get_object_size_16() const { return get_bit(m_control, 2); }
+    ///
+    /// \return 16 or 8
+    [[nodiscard]] u8 get_object_height() const { return get_bit(m_control, 2) ? 16 : 8; }
 
     /// This bit works similarly to LCDC bit 6: if the bit is clear (0), the BG uses tilemap $9800, otherwise tilemap
     /// $9C00.
