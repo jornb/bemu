@@ -693,12 +693,12 @@ bool Cpu::step() {
         // Halt for 1 cycle
         m_emulator.add_cycles();
 
-        // Exit halt status once an interrupt is set
-        // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
-        if (has_pending_interrupt()) {
-            m_halted = false;
-            spdlog::info("Unhalted");
-        }
+        // // Exit halt status once an interrupt is set
+        // // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
+        // if (has_pending_interrupt()) {
+        //     m_halted = false;
+        //     spdlog::info("Unhalted");
+        // }
     }
 
     // Handle interrupts
@@ -824,8 +824,9 @@ void Cpu::execute_interrupts() {
             // Disable interrupts immediately
             m_interrupt_master_enable = false;
 
+            // Wake up when an interrupt is pending
             if (m_halted) spdlog::info("Unhalted");
-            m_halted = false;  // TODO: Remove?
+            m_halted = false;
             // spdlog::info("Unhalted");
 
             // Call the interrupt handler

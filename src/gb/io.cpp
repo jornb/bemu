@@ -10,13 +10,16 @@ using namespace bemu::gb;
 
 u8 Io::read(u16 address) const {
     if (address == 0xFF00) {
-        // auto select_buttons = get_bit(m_joypad, 5);
-        // auto select_pad = get_bit(m_joypad, 4);
+        const auto select_buttons = get_bit(m_joypad, 5);
+        const auto select_pad = get_bit(m_joypad, 4);
 
-        // TODO: Return buttons. If both buttons are selected, the low nibble reads 0xF (all buttons released)
-        //       All buttons released (for now)
+        if (select_buttons & select_pad) {
+            // If both buttons are selected, the low nibble reads 0xF (all buttons released)
+            return m_joypad & 0xF0 | 0x0F;
+        }
 
-        return m_joypad & 0xF0 | 0x0F;
+        // TODO: Return actual buttons. Thse are all released.
+         return m_joypad & 0xF0 | 0x0F;
     }
 
     if (address == 0xFF01) {
@@ -46,8 +49,8 @@ void Io::write(u16 address, const u8 value) {
         // The lower nibble is read-only, so only write the top
         m_joypad = value & 0xF0 | m_joypad & 0x0F;
 
-        // Top bits are not used, but seem to be set to 1?
-        m_joypad |= 0b11000000;
+        // // Top bits are not used, but seem to be set to 1?
+        // m_joypad |= 0b11000000;
 
         return;
     }
