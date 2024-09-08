@@ -238,43 +238,44 @@ struct Cpu {
     void execute_noop(const std::string &dbg, const CpuInstruction &instruction);
     void execute_stop(const std::string &dbg, const CpuInstruction &instruction);
     void execute_halt(const std::string &dbg, const CpuInstruction &instruction);
-    void execute_ld(const std::string &dbg, const CpuInstruction &instruction);    ///< Load
-    void execute_inc(const std::string &dbg, const CpuInstruction &instruction);   ///< Increment
-    void execute_dec(const std::string &dbg, const CpuInstruction &instruction);   ///< Decrement
-    void execute_add(const std::string &dbg, const CpuInstruction &instruction);   ///< Add
-    void execute_adc(const std::string &dbg, const CpuInstruction &instruction);   ///< Add with carry
-    void execute_sub(const std::string &dbg, const CpuInstruction &instruction);   ///< Sutract
-    void execute_sbc(const std::string &dbg, const CpuInstruction &instruction);   ///< Subtract with carry
-    void execute_cp(const std::string &dbg, const CpuInstruction &instruction);    ///< Compare
-    void execute_and(const std::string &dbg, const CpuInstruction &instruction);   ///< Bitwise AND
-    void execute_or(const std::string &dbg, const CpuInstruction &instruction);    ///< Bitwise OR
-    void execute_xor(const std::string &dbg, const CpuInstruction &instruction);   ///< Bitwise XOR
-    void execute_jp(const std::string &dbg, const CpuInstruction &instruction);    ///< Absolute jump
-    void execute_call(const std::string &dbg, const CpuInstruction &instruction);  ///< Call function
-    void execute_rst(const std::string &dbg, const CpuInstruction &instruction);   ///< Restart/call function
-    void execute_ret(const std::string &dbg, const CpuInstruction &instruction);   ///< Return from function
-    void execute_reti(const std::string &dbg, const CpuInstruction &instruction);  ///< Return from interrupt
-    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Arithmetic
-    void execute_srl(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Right Logical
-    void execute_rrc(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right Circular
-    void execute_rrca(const std::string &dbg, const CpuInstruction &instruction);  ///< Rotate Right Circular A
-    void execute_rr(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right
-    void execute_rra(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right A
-    void execute_sla(const std::string &dbg, const CpuInstruction &instruction);   ///< Shift Left Arithmetic
-    void execute_rlc(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left Circular
-    void execute_rlca(const std::string &dbg, const CpuInstruction &instruction);  ///< Rotate Left Circular A
-    void execute_rl(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left
-    void execute_rla(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left A
-    void execute_push(const std::string &dbg, const CpuInstruction &instruction);  ///< Stack push
-    void execute_pop(const std::string &dbg, const CpuInstruction &instruction);   ///< Stack pop
-    void execute_scf(const std::string &dbg, const CpuInstruction &instruction);   ///< Set carry flag
-    void execute_ccf(const std::string &dbg, const CpuInstruction &instruction);   ///< Compliment carry flag
-    void execute_cpl(const std::string &dbg, const CpuInstruction &instruction);   ///< Compliment accumulator
-    void execute_daa(const std::string &dbg, const CpuInstruction &instruction);   ///< Decimal Adjust Accumulator
-    void execute_bit(const std::string &dbg, const CpuInstruction &instruction);   ///< Test bit
-    void execute_set(const std::string &dbg, const CpuInstruction &instruction);   ///< Set bit
-    void execute_res(const std::string &dbg, const CpuInstruction &instruction);   ///< Clear bit
-    void execute_swap(const std::string &dbg, const CpuInstruction &instruction);  ///< Swap nibbles
+    void execute_ld(const std::string &dbg, const CpuInstruction &instruction);     ///< Load
+    void execute_ld_f8(const std::string &dbg, const CpuInstruction &instruction);  ///< Load, special 0xF8 version
+    void execute_inc(const std::string &dbg, const CpuInstruction &instruction);    ///< Increment
+    void execute_dec(const std::string &dbg, const CpuInstruction &instruction);    ///< Decrement
+    void execute_add(const std::string &dbg, const CpuInstruction &instruction);    ///< Add
+    void execute_adc(const std::string &dbg, const CpuInstruction &instruction);    ///< Add with carry
+    void execute_sub(const std::string &dbg, const CpuInstruction &instruction);    ///< Sutract
+    void execute_sbc(const std::string &dbg, const CpuInstruction &instruction);    ///< Subtract with carry
+    void execute_cp(const std::string &dbg, const CpuInstruction &instruction);     ///< Compare
+    void execute_and(const std::string &dbg, const CpuInstruction &instruction);    ///< Bitwise AND
+    void execute_or(const std::string &dbg, const CpuInstruction &instruction);     ///< Bitwise OR
+    void execute_xor(const std::string &dbg, const CpuInstruction &instruction);    ///< Bitwise XOR
+    void execute_jp(const std::string &dbg, const CpuInstruction &instruction);     ///< Absolute jump
+    void execute_call(const std::string &dbg, const CpuInstruction &instruction);   ///< Call function
+    void execute_rst(const std::string &dbg, const CpuInstruction &instruction);    ///< Restart/call function
+    void execute_ret(const std::string &dbg, const CpuInstruction &instruction);    ///< Return from function
+    void execute_reti(const std::string &dbg, const CpuInstruction &instruction);   ///< Return from interrupt
+    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Right Arithmetic
+    void execute_srl(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Right Logical
+    void execute_rrc(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right Circular
+    void execute_rrca(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right Circular A
+    void execute_rr(const std::string &dbg, const CpuInstruction &instruction);     ///< Rotate Right
+    void execute_rra(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right A
+    void execute_sla(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Left Arithmetic
+    void execute_rlc(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left Circular
+    void execute_rlca(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left Circular A
+    void execute_rl(const std::string &dbg, const CpuInstruction &instruction);     ///< Rotate Left
+    void execute_rla(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left A
+    void execute_push(const std::string &dbg, const CpuInstruction &instruction);   ///< Stack push
+    void execute_pop(const std::string &dbg, const CpuInstruction &instruction);    ///< Stack pop
+    void execute_scf(const std::string &dbg, const CpuInstruction &instruction);    ///< Set carry flag
+    void execute_ccf(const std::string &dbg, const CpuInstruction &instruction);    ///< Compliment carry flag
+    void execute_cpl(const std::string &dbg, const CpuInstruction &instruction);    ///< Compliment accumulator
+    void execute_daa(const std::string &dbg, const CpuInstruction &instruction);    ///< Decimal Adjust Accumulator
+    void execute_bit(const std::string &dbg, const CpuInstruction &instruction);    ///< Test bit
+    void execute_set(const std::string &dbg, const CpuInstruction &instruction);    ///< Set bit
+    void execute_res(const std::string &dbg, const CpuInstruction &instruction);    ///< Clear bit
+    void execute_swap(const std::string &dbg, const CpuInstruction &instruction);   ///< Swap nibbles
 
     /// Disables interrupt handling by setting IME=0, and cancelling any scheduled effects of the EI instruction (if
     /// any)

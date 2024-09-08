@@ -61,7 +61,6 @@ bool is_address(const OperandType t) {
         case OperandType::Address8:
         case OperandType::Address16:
         case OperandType::RelativeAddress8pc:
-        case OperandType::RelativeAddress8sp:
         case OperandType::HLI:
         case OperandType::HLD: return true;
         default: return false;
@@ -550,7 +549,7 @@ Cpu::Cpu(Emulator &emulator) : m_emulator(emulator) {
     m_instruction_handlers[0xF5] = {&execute_push, Register::AF};
     m_instruction_handlers[0xF6] = {&execute_or, OperandType::Data8u};
     m_instruction_handlers[0xF7] = {&execute_rst, OperandType::None, OperandType::None, Condition::None, 0x30};
-    m_instruction_handlers[0xF8] = {&execute_ld, Register::HL, OperandType::RelativeAddress8sp};
+    m_instruction_handlers[0xF8] = {&execute_ld_f8, Register::HL, OperandType::RelativeAddress8sp};
     m_instruction_handlers[0xF9] = {&execute_ld, Register::SP, Register::HL};
     m_instruction_handlers[0xFA] = {&execute_ld, Register::A, OperandType::Address16};
     m_instruction_handlers[0xFB] = {&execute_ei};
@@ -725,7 +724,7 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    // spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::trace);
 
     std::string prefix =
         !spdlog::should_log(spdlog::level::trace)
@@ -742,58 +741,107 @@ void Cpu::execute_next_instruction() {
     last_ticks = ticks;
     spdlog::trace("{}", prefix);
 
-    // This is where the error happens
-    if (pc == 0x01D4) {
-        spdlog::trace("Tracepoint: {}", prefix);
+    // // This is where the error happens
+    // if (pc == 0x01D4) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x021c) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x021f) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x0293) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x0296) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    //
+    //     // // Render
+    //     // {
+    //     //     constexpr size_t nx = 16;
+    //     //     constexpr size_t ny = 8 * 3;
+    //     //     RenderTarget<8 * nx, 8 * ny> render;
+    //     //     for (size_t x = 0; x < nx; ++x) {
+    //     //         for (size_t y = 0; y < ny; ++y) {
+    //     //             render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
+    //     //         }
+    //     //     }
+    //     //     for (u8 i = 0; i < render.screen_height; ++i) {
+    //     //         std::string s;
+    //     //         for (u8 c = 0; c < render.screen_width; ++c) {
+    //     //             const auto b = render.m_pixels[i][c];
+    //     //             if (b == 0) {
+    //     //                 s += "  ";
+    //     //             } else if (b == 1) {
+    //     //                 s += "--";
+    //     //             } else if (b == 2) {
+    //     //                 s += "xx";
+    //     //             } else if (b == 3) {
+    //     //                 s += "##";
+    //     //             }
+    //     //         }
+    //     //
+    //     //         spdlog::warn(s);
+    //     //     }
+    //     // }
+    // }
+    //
+    // if (pc == 0x47f2) {
+    //     spdlog::trace("Tracepoint: {}", prefix);
+    // }
+
+    // if (pc == 0x1fd0) {
+    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
+    // }
+    // // if (pc == 0x6018) {
+    // //     // Call that doesn't return
+    // //     spdlog::trace("Pokemon tracepoint: {}", prefix);
+    // // }
+    // if (pc == 0x6023) {
+    //     // Call that doesn't return
+    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
+    // }
+    //
+    // // Gets here...
+    // if (pc == 0x60A2) {
+    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x589d) {//if (pc == 0x5688) {//if (pc == 0x1fee) {
+    //     // Call that starts the intro
+    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
+    // }
+
+    if (pc == 0x0376) {
+        // Second time we get here
+        //  * F=31, but should be 30.
+        //  * C=05, but should be 02.
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x021c) {
-        spdlog::trace("Tracepoint: {}", prefix);
+    if (pc == 0x0379) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x021f) {
-        spdlog::trace("Tracepoint: {}", prefix);
+    if (pc == 0x066B) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x0293) {
-        spdlog::trace("Tracepoint: {}", prefix);
+    if (pc == 0x065f) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x0296) {
-        spdlog::trace("Tracepoint: {}", prefix);
-
-        // // Render
-        // {
-        //     constexpr size_t nx = 16;
-        //     constexpr size_t ny = 8 * 3;
-        //     RenderTarget<8 * nx, 8 * ny> render;
-        //     for (size_t x = 0; x < nx; ++x) {
-        //         for (size_t y = 0; y < ny; ++y) {
-        //             render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
-        //         }
-        //     }
-        //     for (u8 i = 0; i < render.screen_height; ++i) {
-        //         std::string s;
-        //         for (u8 c = 0; c < render.screen_width; ++c) {
-        //             const auto b = render.m_pixels[i][c];
-        //             if (b == 0) {
-        //                 s += "  ";
-        //             } else if (b == 1) {
-        //                 s += "--";
-        //             } else if (b == 2) {
-        //                 s += "xx";
-        //             } else if (b == 3) {
-        //                 s += "##";
-        //             }
-        //         }
-        //
-        //         spdlog::warn(s);
-        //     }
-        // }
+    if (pc == 0x0200) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x47f2) {
-        spdlog::trace("Tracepoint: {}", prefix);
+    if (pc == 0xc243) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
     const auto *instruction_set = &m_instruction_handlers;
@@ -879,6 +927,26 @@ void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) 
     }
 }
 
+void Cpu::execute_ld_f8(const std::string &dbg, const CpuInstruction &instruction) {
+    spdlog::trace("{} LD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
+
+    const int e_int = fetch_u8();
+    const int sp_int = m_registers.sp;
+
+    // Calculate flags
+    const auto h = (sp_int & 0xF) + (e_int & 0xF) > 0xF;
+    const auto c = (sp_int & 0xFF) + (e_int & 0xFF) > 0xFF;
+
+    m_registers.set_u16(instruction.m_op1.m_register.value(), static_cast<u16>(sp_int + e_int));
+    m_registers.set_flags(false, false, h, c);
+
+    // 3 cycles in total
+    //      * Read opcode
+    //      * Read operand
+    //      * This one
+    m_emulator.add_cycles(1);
+}
+
 void Cpu::execute_inc(const std::string &dbg, const CpuInstruction &instruction) {
     spdlog::trace("{} INC {}", dbg, to_string(instruction.m_op1));
     const auto reg = instruction.m_op1.m_register.value();
@@ -896,26 +964,24 @@ void Cpu::execute_inc(const std::string &dbg, const CpuInstruction &instruction)
             // 16-bit indirect increment, e.g. INC [HL]
             const u16 address = m_registers.get_u16(reg);
             const u8 old_value = m_emulator.m_bus.read_u16(address);
-            const int new_value_int = static_cast<int>(old_value) + 1;
-            const u8 new_value = new_value_int & 0xFF;
+            const u8 new_value = old_value + 1;
 
             m_emulator.m_bus.write_u8(address, new_value);
 
             m_registers.set_z(new_value == 0);
             m_registers.set_n(false);
-            m_registers.set_h(new_value_int & 0xF == 0);
+            m_registers.set_h((old_value & 0xF) + 1 > 0xF);
         }
     } else {
         // 8-bit direct increment, e.g. INC B. One cycle.
         const u8 old_value = m_registers.get_u8(reg);
-        const int new_value_int = static_cast<int>(old_value) + 1;
-        const u8 new_value = new_value_int & 0xFF;
+        const u8 new_value = old_value + 1;
 
         m_registers.set_u8(reg, new_value);
 
         m_registers.set_z(new_value == 0);
         m_registers.set_n(false);
-        m_registers.set_h(new_value_int & 0xF == 0);
+        m_registers.set_h((old_value & 0xF) + 1 > 0xF);
     }
 }
 
@@ -936,8 +1002,7 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
             // 16-bit indirect increment, e.g. DEC [HL]
             const u16 address = m_registers.get_u16(reg);
             const u8 old_value = m_emulator.m_bus.read_u16(address);
-            const int new_value_int = static_cast<int>(old_value) - 1;
-            const u8 new_value = new_value_int & 0xFF;
+            const u8 new_value = old_value - 1;
 
             m_emulator.m_bus.write_u8(address, new_value);
 
@@ -945,19 +1010,18 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
 
             m_registers.set_z(new_value == 0);
             m_registers.set_n(true);
-            m_registers.set_h(new_value_int & 0xF == 0);
+            m_registers.set_h(static_cast<int>(old_value) & 0xF - 1 < 0);
         }
     } else {
         // 8-bit direct increment, e.g. DEC B. One cycle.
         const u8 old_value = m_registers.get_u8(reg);
-        const int new_value_int = static_cast<int>(old_value) - 1;
-        const u8 new_value = new_value_int & 0xFF;
+        const u8 new_value = old_value - 1;
 
         m_registers.set_u8(reg, new_value);
 
         m_registers.set_z(new_value == 0);
         m_registers.set_n(true);
-        m_registers.set_h((new_value_int & 0xF) == 0xF);
+        m_registers.set_h(static_cast<int>(old_value) & 0xF - 1 < 0);
     }
 }
 
@@ -1417,7 +1481,7 @@ std::string Cpu::to_string(const OperandDescription &op) const {
         case OperandType::Address8: return fmt::format("({:04x})", 0xFF00 + peek_u8());
         case OperandType::Address16: return fmt::format("({:04x})", peek_u16());
         case OperandType::RelativeAddress8pc: return fmt::format("(IP{:+d})", static_cast<s8>(peek_u8()));
-        case OperandType::RelativeAddress8sp: return fmt::format("(SP{:+d})", static_cast<s8>(peek_u8()));
+        case OperandType::RelativeAddress8sp: return fmt::format("SP{:+d}", static_cast<s8>(peek_u8()));
         case OperandType::HLI: return "[HL+]";
         case OperandType::HLD: return "[HL-]";
         default: throw NotImplementedError();
