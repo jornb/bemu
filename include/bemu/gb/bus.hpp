@@ -9,6 +9,7 @@
 #include "ram.hpp"
 #include "lcd.hpp"
 #include "ppu.hpp"
+#include "serial.hpp"
 
 namespace bemu::gb {
 struct Emulator;
@@ -20,6 +21,7 @@ struct Bus {
     Io m_io{m_lcd};
     RAM<0xFF10, 0xFF26> m_audio{};
     Ppu m_ppu;
+    SerialPort m_serial;;
 
     explicit Bus(Emulator &emulator);
 
