@@ -196,7 +196,7 @@ u8 CpuRegisters::get_u8(const Register type) const {
 
     switch (type) {
         case Register::A: return a;
-        case Register::F: return f;
+        case Register::F: return f & 0xF0;
         case Register::B: return b;
         case Register::C: return c;
         case Register::D: return d;
@@ -214,7 +214,7 @@ void CpuRegisters::set_u8(const Register type, const u8 value) {
 
     switch (type) {
         case Register::A: a = value; break;
-        case Register::F: f = value; break;
+        case Register::F: f = value & 0xF0; break;
         case Register::B: b = value; break;
         case Register::C: c = value; break;
         case Register::D: d = value; break;
@@ -230,7 +230,7 @@ u16 CpuRegisters::get_u16(Register type) const {
         throw std::runtime_error(fmt::format("Tried to get CPU register {} as 16 bit", magic_enum::enum_name(type)));
     }
     switch (type) {
-        case Register::AF: return combine_bytes(a, f);
+        case Register::AF: return combine_bytes(a, f & 0xF0);
         case Register::BC: return combine_bytes(b, c);
         case Register::DE: return combine_bytes(d, e);
         case Register::HL: return combine_bytes(h, l);
@@ -249,7 +249,7 @@ void CpuRegisters::set_u16(const Register type, const u16 value) {
     switch (type) {
         case Register::AF: {
             a = hi;
-            f = lo;
+            f = lo & 0xF0;
             break;
         }
         case Register::BC: {
@@ -724,17 +724,16 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::info);
 
     std::string prefix =
         !spdlog::should_log(spdlog::level::trace)
             ? ""
             : fmt::format(
-                  "{:08d} (+{:>2})    {:04x}    [A={:02x} F={:02x} B={:02x} C={:02x} D={:02x} E={:02x} H={:02x} "
-                  "L={:02x} "
-                  "SP={:04x}]    [{}{}{}{}]    ({:02x} {:02x} {:02x})   ",
-                  ticks, ticks - last_ticks, pc, m_registers.a, m_registers.f, m_registers.b, m_registers.c,
-                  m_registers.d, m_registers.e, m_registers.h, m_registers.l, m_registers.sp,
+                  "{:08d} (+{:>2})    {:04x}    [AF={:04x} BC={:04x} DE={:04x} HL={:04x} SP={:04x}]    [{}{}{}{}]    "
+                  "({:02x} {:02x} {:02x})   ",
+                  ticks, ticks - last_ticks, pc, m_registers.get_u16(Register::AF), m_registers.get_u16(Register::BC),
+                  m_registers.get_u16(Register::DE), m_registers.get_u16(Register::HL), m_registers.sp,
                   m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
                   m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
                   m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
@@ -836,11 +835,31 @@ void Cpu::execute_next_instruction() {
         spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0x0200) {
+    if (pc == 0x020c) {
         spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
-    if (pc == 0xc243) {
+    if (pc == 0xc012) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+
+    if (pc == 0xc308) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+
+    if (pc == 0xc30f) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+
+    if (pc == 0xc329 && m_registers.c == 0xFF) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+
+    if (pc == 0xc31D) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+
+    if (pc == 0xc325) {
         spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
@@ -1010,7 +1029,7 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
 
             m_registers.set_z(new_value == 0);
             m_registers.set_n(true);
-            m_registers.set_h(static_cast<int>(old_value) & 0xF - 1 < 0);
+            m_registers.set_h((static_cast<int>(old_value) & 0xF) - 1 < 0);
         }
     } else {
         // 8-bit direct increment, e.g. DEC B. One cycle.
@@ -1021,7 +1040,7 @@ void Cpu::execute_dec(const std::string &dbg, const CpuInstruction &instruction)
 
         m_registers.set_z(new_value == 0);
         m_registers.set_n(true);
-        m_registers.set_h(static_cast<int>(old_value) & 0xF - 1 < 0);
+        m_registers.set_h((static_cast<int>(old_value) & 0xF) - 1 < 0);
     }
 }
 
