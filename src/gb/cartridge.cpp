@@ -49,11 +49,11 @@ u8 Cartridge::read(const u16 address) const {
     }
 
     // 0x4000 <= address <= 7FFF
-    auto a = 0x4000 * m_rom_bank_number + (address - 0x4000);
+    const auto a = 0x4000 * m_rom_bank_number + (address - 0x4000);
     if (a >= m_data.size()) {
         throw std::runtime_error("Cartridge::read: address out of bounds");
     }
-    return m_data.at(0x4000 * m_rom_bank_number + (address - 0x4000));
+    return m_data.at(a);
 }
 
 void Cartridge::write(const u16 address, const u8 value) {

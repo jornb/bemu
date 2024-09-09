@@ -724,7 +724,7 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    spdlog::set_level(spdlog::level::info);
+    // spdlog::set_level(spdlog::level::trace);
 
     std::string prefix =
         !spdlog::should_log(spdlog::level::trace)
@@ -1411,6 +1411,7 @@ void Cpu::execute_cpl(const std::string &dbg, const CpuInstruction &) {
     spdlog::trace("{} CPL", dbg);
     m_registers.a = ~m_registers.a;
     m_registers.set_n(true);
+    m_registers.set_h(true);
 }
 
 void Cpu::execute_daa(const std::string &dbg, const CpuInstruction &) {
@@ -1444,7 +1445,7 @@ void Cpu::execute_bit(const std::string &dbg, const CpuInstruction &instruction)
     spdlog::trace("{} BIT {}, {}", dbg, instruction.m_parameter, to_string(instruction.m_op1));
     const auto value = decode_u8(instruction.m_op1);
     write_register_u8(instruction.m_op1.m_register.value(), value);
-    m_registers.set_z(get_bit(value, instruction.m_parameter));
+    m_registers.set_z(!get_bit(value, instruction.m_parameter));
     m_registers.set_n(false);
     m_registers.set_h(true);
 }

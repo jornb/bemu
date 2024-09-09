@@ -155,7 +155,7 @@ struct Cartridge {
 private:
     std::vector<u8> m_data;
 
-    u8 m_rom_bank_number = 0;
+    u8 m_rom_bank_number = 1;
 
     bool m_ram_enabled = true;
     std::array<RAM<0xA000, 0xBFFF>, 16> m_external_ram_banks{};
