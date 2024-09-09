@@ -159,8 +159,7 @@ void Ppu::dot_tick() {
 
         draw_output_screen();
 
-        if (!m_screen.empty())
-            m_screen.clear();
+        if (!m_screen.empty()) m_screen.clear();
     }
 
     // Check for ly compare
@@ -373,19 +372,19 @@ void Ppu::render_scanline_window() {
 
 void Ppu::render_scanline_objects() {
     const auto line_objects = load_line_objects();
-    auto y = get_line_number();
+    auto screen_y = get_line_number();
 
     for (size_t i_object = 0; i_object < line_objects.size(); ++i_object) {
         const auto &object = *line_objects[i_object];
 
-        for (int x = 0; x < screen_width; ++x) {
+        for (int screen_x = 0; screen_x < screen_width; ++screen_x) {
             // All objects are 8 px wide
-            auto local_x = x - object.get_screen_x();
+            auto local_x = screen_x - object.get_screen_x();
             if (local_x < 0 || local_x >= 8) {
                 continue;
             }
 
-            auto local_y = y - object.get_screen_y();
+            auto local_y = screen_y - object.get_screen_y();
             if (local_y < 0 || local_y >= m_lcd.get_object_height()) {
                 throw std::runtime_error("render_scanline_objects");
             }
@@ -398,17 +397,26 @@ void Ppu::render_scanline_objects() {
             }
 
             // Don't draw on prioritized background
-            const auto existing_px = m_screen.get_pixel(x, y);
+            const auto existing_px = m_screen.get_pixel(screen_x, screen_y);
             if (object.background_has_priority() && existing_px != 0) {
                 continue;
             }
 
             const u8 *tile_data = m_vram.data() + 16 * object.m_tile_index;
             const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
-            // spdlog::error("Tile {:02x} @ {}, {} (height is {}). Setting {}, {}  ({}, {}) = {}", object.m_tile_index,
-            //               object.get_screen_x(), object.get_screen_y(), m_lcd.get_object_height(), x, y, local_x,
-            //               local_y, tile_pixel);
-            m_screen.set_pixel(x, y, tile_pixel);
+            // spdlog::error("Tile {:02x} @ {}, {} (height is {}) {:04x}. Setting {}, {}  ({}, {}) = {}",
+            //               object.m_tile_index, object.m_x, object.m_y, m_lcd.get_object_height(),
+            //               m_vram.first_address + 16 * object.m_tile_index, screen_x, screen_y, local_x, local_y,
+            //               tile_pixel);
+            // if (local_x == 0 || local_x == 7 || local_y == 0 || local_y == 7) {
+            //     m_screen.set_pixel(screen_x, screen_y,
+            //                        object.m_tile_index == 0x08   ? 0
+            //                        : object.m_tile_index == 0x09 ? 1
+            //                        : object.m_tile_index == 0x18 ? 2
+            //                                                      : 3);
+            // } else {
+            m_screen.set_pixel(screen_x, screen_y, tile_pixel);
+            // }
         }
     }
 }
