@@ -631,7 +631,7 @@ void Cpu::write_memory(const u16 address, const u8 value) {
 }
 
 void Cpu::set_pending_interrupt(const InterruptType type, const bool pending_interrupt) {
-    set_bit(m_interrupt_request_flags, type, pending_interrupt);
+    set_bit(m_interrupt_request_flags, static_cast<u8>(type), pending_interrupt);
 }
 
 bool Cpu::has_pending_interrupt() const { return m_interrupt_request_flags & 0b11111 > 0; }
@@ -692,12 +692,11 @@ bool Cpu::step() {
         // Halt for 1 cycle
         m_emulator.add_cycles();
 
-        // // Exit halt status once an interrupt is set
-        // // If we don't have interrupts enabled at this point... we're stuck... so don't handle that case
-        // if (has_pending_interrupt()) {
-        //     m_halted = false;
-        //     spdlog::info("Unhalted");
-        // }
+        // Exit halt status on any interrupt, even if not handled
+        if (has_pending_interrupt()) {
+            m_halted = false;
+            spdlog::info("Unhalted");
+        }
     }
 
     // Handle interrupts
@@ -740,144 +739,19 @@ void Cpu::execute_next_instruction() {
     last_ticks = ticks;
     spdlog::trace("{}", prefix);
 
-    // // This is where the error happens
-    // if (pc == 0x01D4) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x021c) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x021f) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x0293) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x0296) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    //
-    //     // // Render
-    //     // {
-    //     //     constexpr size_t nx = 16;
-    //     //     constexpr size_t ny = 8 * 3;
-    //     //     RenderTarget<8 * nx, 8 * ny> render;
-    //     //     for (size_t x = 0; x < nx; ++x) {
-    //     //         for (size_t y = 0; y < ny; ++y) {
-    //     //             render.render_tile(m_emulator.m_bus.m_ppu.m_vram.data() + x * 0x10 + y * 0x100, 8 * x, 8 * y);
-    //     //         }
-    //     //     }
-    //     //     for (u8 i = 0; i < render.screen_height; ++i) {
-    //     //         std::string s;
-    //     //         for (u8 c = 0; c < render.screen_width; ++c) {
-    //     //             const auto b = render.m_pixels[i][c];
-    //     //             if (b == 0) {
-    //     //                 s += "  ";
-    //     //             } else if (b == 1) {
-    //     //                 s += "--";
-    //     //             } else if (b == 2) {
-    //     //                 s += "xx";
-    //     //             } else if (b == 3) {
-    //     //                 s += "##";
-    //     //             }
-    //     //         }
-    //     //
-    //     //         spdlog::warn(s);
-    //     //     }
-    //     // }
-    // }
-    //
-    // if (pc == 0x47f2) {
-    //     spdlog::trace("Tracepoint: {}", prefix);
-    // }
-
-    // if (pc == 0x1fd0) {
-    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
-    // }
-    // // if (pc == 0x6018) {
-    // //     // Call that doesn't return
-    // //     spdlog::trace("Pokemon tracepoint: {}", prefix);
-    // // }
-    // if (pc == 0x6023) {
-    //     // Call that doesn't return
-    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
-    // }
-    //
-    // // Gets here...
-    // if (pc == 0x60A2) {
-    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x589d) {//if (pc == 0x5688) {//if (pc == 0x1fee) {
-    //     // Call that starts the intro
-    //     spdlog::trace("Pokemon tracepoint: {}", prefix);
-    // }
-
-    // if (pc == 0x0376) {
-    //     // Second time we get here
-    //     //  * F=31, but should be 30.
-    //     //  * C=05, but should be 02.
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x0379) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x066B) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x065f) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0x020c) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc012) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc308) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc30f) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc329 && m_registers.c == 0xFF) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc31D) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    // if (pc == 0xc325) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-
-    // if (pc == 0xc656) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    //
-    // if (pc == 0xc67e) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-    //
-    //
-    // if (pc == 0xc687) {
-    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    // }
-
-    if (pc == 0xdef8) {
+    if (pc == 0xc255) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+    if (pc == 0xc25a) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+    if (pc == 0xc25f) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+    if (pc == 0xc263) {
+        spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    }
+    if (pc == 0xc36f) {
         spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
@@ -910,8 +784,9 @@ void Cpu::execute_interrupts() {
             m_interrupt_master_enable = false;
 
             // Wake up when an interrupt is pending
-            if (m_halted) spdlog::info("Unhalted");
-            m_halted = false;
+            // if (m_halted)
+            //     spdlog::info("Unhalted");
+            // m_halted = false;
             // spdlog::info("Unhalted");
 
             // Call the interrupt handler
@@ -931,6 +806,10 @@ void Cpu::execute_noop(const std::string &debug_prefix, const CpuInstruction &) 
 void Cpu::execute_stop(const std::string &debug_prefix, const CpuInstruction &) {
     const auto data = fetch_u8();
     spdlog::trace("{} STOP {:02x}", debug_prefix, data);
+
+    // Timer value is reset when executing the STOP instruction
+    m_emulator.m_bus.m_timer.m_divider = 0x00;
+
     throw std::runtime_error("Stopped");
 }
 

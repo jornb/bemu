@@ -19,19 +19,7 @@ u8 Io::read(u16 address) const {
         }
 
         // TODO: Return actual buttons. Thse are all released.
-         return m_joypad & 0xF0 | 0x0F;
-    }
-
-    if (address == 0xFF01) {
-        return m_serial_data;
-    }
-
-    if (address == 0xFF02) {
-        return m_serial_control;
-    }
-
-    if (m_timer.contains(address)) {
-        return m_timer.read_memory(address);
+        return m_joypad & 0xF0 | 0x0F;
     }
 
     if (m_lcd.contains(address)) {
@@ -53,20 +41,6 @@ void Io::write(u16 address, const u8 value) {
         // m_joypad |= 0b11000000;
 
         return;
-    }
-
-    if (address == 0xFF01) {
-        m_serial_data = value;
-        return;
-    }
-
-    if (address == 0xFF02) {
-        m_serial_control = value;
-        return;
-    }
-
-    if (m_timer.contains(address)) {
-        return m_timer.write_memory(address, value);
     }
 
     if (m_lcd.contains(address)) {

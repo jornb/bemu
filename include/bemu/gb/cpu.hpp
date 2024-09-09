@@ -9,7 +9,7 @@
 
 namespace bemu::gb {
 
-enum InterruptType : u8 { VBlank, LCD, Timer, Serial, Joypad };
+enum class InterruptType : u8 { VBlank, LCD, Timer, Serial, Joypad };
 
 /// CPU regsiter type
 enum class Register : u8 { None, A, F, B, C, D, E, H, L, AF, BC, DE, HL, SP, PC };

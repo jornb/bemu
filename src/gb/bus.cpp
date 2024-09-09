@@ -22,7 +22,8 @@ using namespace bemu::gb;
 // 0xFF00 - 0xFF7F : I/O Registers
 // 0xFF80 - 0xFFFE : Zero Page
 
-Bus::Bus(Emulator& emulator) : m_emulator(emulator), m_ppu(*this, m_lcd, m_emulator.m_screen, m_emulator.m_cpu) {}
+Bus::Bus(Emulator& emulator)
+    : m_emulator(emulator), m_ppu(*this, m_lcd, m_emulator.m_screen, m_emulator.m_cpu), m_timer(m_emulator.m_cpu) {}
 
 u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (add_cycles) m_emulator.add_cycles();
@@ -53,6 +54,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
 
     if (m_serial.contains(address)) {
         return m_serial.read_memory(address);
+    }
+
+    if (m_timer.contains(address)) {
+        return m_timer.read_memory(address);
     }
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
@@ -105,6 +110,10 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
 
     if (m_serial.contains(address)) {
         return m_serial.write_memory(address, value);
+    }
+
+    if (m_timer.contains(address)) {
+        return m_timer.write_memory(address, value);
     }
 
     if (address >= 0xFF00 && address <= 0xFF7F) {

@@ -1,20 +1,16 @@
 #pragma once
 
+#include "ram.hpp"
 #include "types.hpp"
 #include "utils.hpp"
-#include "ram.hpp"
 
 namespace bemu::gb {
-enum class TimerClockType : u8 {
-    Timer256 = 0b00,
-    Timer4 = 0b01,
-    Timer16 = 0b10,
-    Timer64 = 0b11,
-};
+struct Cpu;
 
-#pragma pack(push, 1)
 /// Timer and Divider Registers
 struct Timer : MemoryRegion<0xFF04, Timer> {
+    explicit Timer(Cpu &cpu) : m_cpu{cpu} {}
+
     /// FF04 - DIV: Divider register
     ///
     /// This register is incremented at a rate of 16384Hz (~16779Hz on SGB). Writing any value to this register resets
@@ -22,14 +18,14 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     /// again once stop mode ends. This also occurs during a speed switch.
     ///
     /// Note: The divider is affected by CGB double speed mode, and will increment at 32768Hz in double speed.
-    u8 m_divider;
+    u8 m_divider = 0;
 
     /// FF05 - TIMA: Timer counter
     ///
     /// This timer is incremented at the clock frequency specified by the TAC register ($FF07). When the value overflows
     /// (exceeds $FF) it is reset to the value specified in TMA (FF06) and an interrupt is requested, as described
     /// below.
-    u8 m_counter;
+    u8 m_counter = 0;
 
     /// FF06 - TMA: Timer modulo
     ///
@@ -40,7 +36,7 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     ///
     /// If a TMA write is executed on the same M-cycle as the content of TMA is transferred to TIMA due to a timer
     /// overflow, the old value is transferred to TIMA.
-    u8 m_modulo;
+    u8 m_modulo = 0;
 
     /// FF07 - TAC: Timer control
     ///
@@ -53,16 +49,32 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     /// Bit 2: Enable: Controls whether TIMA is incremented. Note that DIV is always counting, regardless of this bit.
     ///
     /// Note that writing to this register may increase TIMA once!
-    u8 m_control;
+    u8 m_control = 0;
+
+    [[nodiscard]] bool contains(u16 address) const;
+    [[nodiscard]] u8 read_memory(u16 address) const;
+    void write_memory(u16 address, u8 value);
 
     void set_enable(const bool enable) { set_bit(m_control, 2, enable); }
-    [[nodiscard]] bool get_enable() const { return get_bit(m_control, 2); }
+    [[nodiscard]] bool get_enable_tima() const { return get_bit(m_control, 2); }
 
-    [[nodiscard]] TimerClockType get_clock_select() const {
-        return static_cast<TimerClockType>(m_control & 0b00000011);
+    [[nodiscard]] u16 get_clock_select_m_cycles() const {
+        switch (m_control & 0b00000011) {
+            case 0b01: return 4;
+            case 0b10: return 16;
+            case 0b11: return 64;
+            default: return 256;
+        }
     }
+    /// Called every M-cycle
+    /// The timers are updated @ 16384 Hz, which is every 64 M-cycles on regular speed, and every 32 M-cycles on
+    /// double speed
+    void cycle_tick();
 
-    void set_clock_select(TimerClockType select) { m_control = (m_control & ~0b00000011) | static_cast<u8>(select); }
+   private:
+    Cpu &m_cpu;
+
+    u8 m_cycle_ticks_since_div_update = 0;
+    u16 m_cycle_ticks_since_tma_update = 0;
 };
-#pragma pack(pop)
 }  // namespace bemu::gb

@@ -20,13 +20,16 @@ void Emulator::run() {
 }
 
 void Emulator::add_cycles(const u16 cycles) {
-    // PPU has 4 dots per M-cycle
-    for (int m=0; m<cycles; m++) {
-        for (int d=0; d<4; d++) {
+    for (int m = 0; m < cycles; m++) {
+        // PPU has 4 dots per M-cycle.
+        // TODO: Support double-speed, 2 dots per M-cycle
+        for (int d = 0; d < 4; d++) {
             ++m_ticks;
             m_bus.m_ppu.dot_tick();
         }
-
         m_bus.m_ppu.cycle_tick();
+
+        // TODO: Add an extra cycle in double-speed mode
+        m_bus.m_timer.cycle_tick();
     }
 }

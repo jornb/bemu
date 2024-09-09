@@ -5,11 +5,12 @@
 
 #include "cartridge.hpp"
 #include "io.hpp"
-#include "types.hpp"
-#include "ram.hpp"
 #include "lcd.hpp"
 #include "ppu.hpp"
+#include "ram.hpp"
 #include "serial.hpp"
+#include "timer.hpp"
+#include "types.hpp"
 
 namespace bemu::gb {
 struct Emulator;
@@ -21,7 +22,8 @@ struct Bus {
     Io m_io{m_lcd};
     RAM<0xFF10, 0xFF26> m_audio{};
     Ppu m_ppu;
-    SerialPort m_serial;;
+    SerialPort m_serial;
+    Timer m_timer;
 
     explicit Bus(Emulator &emulator);
 
