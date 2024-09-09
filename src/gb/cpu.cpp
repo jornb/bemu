@@ -816,50 +816,68 @@ void Cpu::execute_next_instruction() {
     //     spdlog::trace("Pokemon tracepoint: {}", prefix);
     // }
 
-    if (pc == 0x0376) {
-        // Second time we get here
-        //  * F=31, but should be 30.
-        //  * C=05, but should be 02.
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
+    // if (pc == 0x0376) {
+    //     // Second time we get here
+    //     //  * F=31, but should be 30.
+    //     //  * C=05, but should be 02.
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x0379) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x066B) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x065f) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0x020c) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc012) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc308) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc30f) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc329 && m_registers.c == 0xFF) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc31D) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    // if (pc == 0xc325) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
 
-    if (pc == 0x0379) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
+    // if (pc == 0xc656) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    //
+    // if (pc == 0xc67e) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
+    //
+    //
+    // if (pc == 0xc687) {
+    //     spdlog::trace("cpu_instr tracepoint: {}", prefix);
+    // }
 
-    if (pc == 0x066B) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0x065f) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0x020c) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc012) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc308) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc30f) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc329 && m_registers.c == 0xFF) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc31D) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    if (pc == 0xc325) {
+    if (pc == 0xdef8) {
         spdlog::trace("cpu_instr tracepoint: {}", prefix);
     }
 
@@ -949,15 +967,17 @@ void Cpu::execute_ld(const std::string &dbg, const CpuInstruction &instruction) 
 void Cpu::execute_ld_f8(const std::string &dbg, const CpuInstruction &instruction) {
     spdlog::trace("{} LD {}, {}", dbg, to_string(instruction.m_op1), to_string(instruction.m_op2));
 
-    const int e_int = fetch_u8();
-    const int sp_int = m_registers.sp;
+    const int old_value = m_registers.sp;
+    const int added_value = static_cast<s8>(fetch_u8());
+    const int new_value_int = static_cast<int>(old_value) + added_value;
+    const auto new_value = static_cast<u16>(new_value_int);
 
-    // Calculate flags
-    const auto h = (sp_int & 0xF) + (e_int & 0xF) > 0xF;
-    const auto c = (sp_int & 0xFF) + (e_int & 0xFF) > 0xFF;
+    m_registers.set_u16(instruction.m_op1.m_register.value(), new_value);
 
-    m_registers.set_u16(instruction.m_op1.m_register.value(), static_cast<u16>(sp_int + e_int));
-    m_registers.set_flags(false, false, h, c);
+    m_registers.set_z(false);
+    m_registers.set_n(false);
+    m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
+    m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
 
     // 3 cycles in total
     //      * Read opcode
@@ -1069,7 +1089,7 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
         const auto old_value = m_registers.sp;
         const auto added_value = static_cast<s8>(fetch_u8());
         const auto new_value_int = static_cast<int>(old_value) + added_value;
-        const auto new_value = static_cast<u8>(new_value_int & 0xFF);
+        const auto new_value = static_cast<u16>(new_value_int);
 
         m_registers.sp = new_value;
 
