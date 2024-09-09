@@ -1074,6 +1074,7 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
         m_registers.sp = new_value;
 
         m_registers.set_z(false);
+        m_registers.set_n(false);
         m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
         m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
     } else {
@@ -1082,12 +1083,13 @@ void Cpu::execute_add(const std::string &dbg, const CpuInstruction &instruction)
         const auto added_value = decode_u16(instruction.m_op2);
 
         const auto new_value_int = static_cast<int>(old_value) + added_value;
-        const auto new_value = static_cast<u16>(new_value_int & 0xFFFF);
+        const auto new_value = static_cast<u16>(new_value_int);
 
         m_registers.set_u16(reg1, new_value);
 
-        m_registers.set_h((old_value & 0xF) + (added_value & 0xF) > 0xF);
-        m_registers.set_c((old_value & 0xFF) + (added_value & 0xFF) > 0xFF);
+        m_registers.set_n(false);
+        m_registers.set_h((old_value & 0xFFF) + (added_value & 0xFFF) > 0xFFF);
+        m_registers.set_c((old_value & 0xFFFF) + (added_value & 0xFFFF) > 0xFFFF);
     }
 }
 
@@ -1364,7 +1366,7 @@ void Cpu::execute_rl(const std::string &dbg, const CpuInstruction &instruction) 
     auto value = read_register_u8(reg);
     const bool rotated_bit = get_bit(value, 7);
     value <<= 1;
-    set_bit(value, 0, m_registers.get_z());
+    set_bit(value, 0, m_registers.get_c());
 
     write_register_u8(reg, value);
     m_registers.set_flags(value == 0, false, false, rotated_bit);
@@ -1376,7 +1378,7 @@ void Cpu::execute_rla(const std::string &dbg, const CpuInstruction &) {
     auto value = m_registers.a;
     const bool rotated_bit = get_bit(value, 7);
     value <<= 1;
-    set_bit(value, 0, m_registers.get_z());
+    set_bit(value, 0, m_registers.get_c());
 
     m_registers.a = value;
     m_registers.set_flags(false, false, false, rotated_bit);
