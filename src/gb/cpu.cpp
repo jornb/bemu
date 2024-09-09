@@ -901,8 +901,8 @@ void Cpu::execute_next_instruction() {
 }
 
 void Cpu::execute_interrupts() {
-    for (u8 bit = 0; bit < 8; ++bit) {
-        if (get_bit(m_interrupt_request_flags, bit)) {
+    for (u8 bit = 0; bit < 5; ++bit) {
+        if (get_bit(m_interrupt_request_flags, bit) && get_bit(m_interrupt_enable_flags, bit)) {
             // Clear the interrupt request flag
             set_bit(m_interrupt_request_flags, bit, false);
 
