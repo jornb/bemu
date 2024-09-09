@@ -126,6 +126,6 @@ u16 Bus::read_u16(const u16 address, const bool add_cycles) const {
 
 void Bus::write_u16(const u16 address, const u16 value, const bool add_cycles) {
     auto [hi, lo] = split_bytes(value);
-    write_u8(address, hi, add_cycles);
-    write_u8(address + 1, lo, add_cycles);
+    write_u8(address, lo, add_cycles);
+    write_u8(address + 1, hi, add_cycles);
 }
