@@ -60,6 +60,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         return m_timer.read_memory(address);
     }
 
+    if (0xE000 <= address && address <= 0xFDFF) {
+        return 0x00;
+    }
+
     if (address >= 0xFF00 && address <= 0xFF7F) {
         return m_io.read(address);
     }
@@ -114,6 +118,11 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
 
     if (m_timer.contains(address)) {
         return m_timer.write_memory(address, value);
+    }
+
+    // Reserved - echo ram
+    if (0xE000 <= address && address <= 0xFDFF) {
+        return;
     }
 
     if (address >= 0xFF00 && address <= 0xFF7F) {
