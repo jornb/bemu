@@ -19,5 +19,7 @@ ApplicationWindow {
         height: 144
         anchors.centerIn: parent
         scale: 4
+
+        image: ctxEmulator.image
     }
 }

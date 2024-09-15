@@ -13,7 +13,7 @@ struct RenderTarget {
     constexpr static int screen_height = Height;
     std::array<std::array<u8, screen_width>, screen_height> m_pixels{};
 
-    u8 get_pixel(int x, int y) { return m_pixels[y][x]; }
+    u8 get_pixel(int x, int y) const { return m_pixels[y][x]; }
 
     void set_pixel(int x, int y, u8 pixel) { m_pixels[y][x] = pixel; }
 

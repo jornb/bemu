@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <bemu/gb/bus.hpp>
+#include <bemu/gb/emulator.hpp>
 #include <bemu/gb/ppu.hpp>
 #include <bemu/gb/screen.hpp>
 #include <stdexcept>
@@ -157,7 +158,9 @@ void Ppu::dot_tick() {
         m_frame_number++;
         // spdlog::info("m_frame_number = {}", m_frame_number);
 
-        draw_output_screen();
+        m_bus.m_emulator.m_callback_screen_rendered();
+
+        // draw_output_screen();
 
         if (!m_screen.empty()) m_screen.clear();
     }

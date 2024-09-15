@@ -2,16 +2,19 @@
 
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
+#include <QQmlContext>
 #include <bemu/gb/cartridge.hpp>
 #include <bemu/gb/cpu.hpp>
 #include <bemu/gb/emulator.hpp>
 #include <cstdio>
 #include <magic_enum.hpp>
+#include <thread>
+
+#include "gui/emulator.hpp"
 #include "gui/screen.hpp"
 
 using namespace bemu;
 using namespace bemu::gb;
-
 
 int main(int argc, char **argv) {
     if (argc != 2) {
@@ -36,7 +39,14 @@ int main(int argc, char **argv) {
 
         QGuiApplication app(argc, argv);
         QQmlApplicationEngine engine;
+
+        std::thread t{[&] { emulator.run(); }};
+
+        auto gui_emulator = std::make_shared<GuiEmulator>();
+        emulator.m_callback_screen_rendered = [&] { gui_emulator->on_screen_rendered(emulator.m_screen); };
+
         qmlRegisterType<::Screen>("bemu.gb", 1, 0, "Screen");
+        engine.rootContext()->setContextProperty("ctxEmulator", gui_emulator.get());
         engine.load(QUrl(QStringLiteral("src/gb/main.qml")));
 
         qDebug() << "Help!";

@@ -22,6 +22,7 @@ add_executable(bemugb
         src/gb/ppu.cpp
         src/gb/timer.cpp
 
+        src/gb/gui/emulator.hpp
         src/gb/gui/screen.hpp
 )
 

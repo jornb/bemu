@@ -6,7 +6,12 @@
 #include "ppu.hpp"
 #include "screen.hpp"
 
+#include <memory>
+#include <functional>
+
 namespace bemu::gb {
+
+
 struct Emulator {
     Cartridge m_cartridge;
     Bus m_bus{*this};
@@ -17,6 +22,8 @@ struct Emulator {
     bool m_running = true;
     // bool m_die;
     u64 m_ticks = 0;
+
+    std::function<void()> m_callback_screen_rendered = []{};
 
     void run();
 
