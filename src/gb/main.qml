@@ -10,15 +10,14 @@ ApplicationWindow {
     height: 800
 
     Rectangle {
-        color: "orange"
+        color: "white"
         anchors.fill: parent
     }
 
     Screen {
-        width: 160
-        height: 144
+        width: 160*4
+        height: 144*4
         anchors.centerIn: parent
-        scale: 4
 
         image: ctxEmulator.image
     }

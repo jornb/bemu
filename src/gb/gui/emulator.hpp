@@ -16,7 +16,7 @@ class GuiEmulator : public QObject {
 
         m_image = QImage(screen.screen_width, screen.screen_height, QImage::Format_RGB888);
 
-        static std::array colors = {qRgb(0, 0, 0), qRgb(85, 85, 85), qRgb(170, 170, 170), qRgb(255, 255, 255)};
+        static std::array colors = {qRgb(255, 255, 255), qRgb(170, 170, 170), qRgb(85, 85, 85), qRgb(0, 0, 0)};
 
         for (int y = 0; y < screen.screen_height; y++) {
             for (int x = 0; x < screen.screen_width; x++) {

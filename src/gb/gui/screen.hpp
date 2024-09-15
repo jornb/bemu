@@ -11,7 +11,7 @@ class Screen : public QQuickPaintedItem {
 
     QImage image() const { return m_image; }
     void setImage(const QImage &image) {
-        m_image = image;
+        m_image = image.scaled(static_cast<int>(width()), static_cast<int>(height()));
         update();
     }
 

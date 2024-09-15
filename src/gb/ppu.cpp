@@ -30,6 +30,8 @@ u8 get_tile_px(const u8 *tile_data, const size_t local_x, const size_t local_y) 
 
     return result;
 }
+
+u8 decode_palette(const u8 palette, const u8 id) { return (palette >> (2 * id)) & 0b11; }
 }  // namespace
 
 bool DmaState::contains(const u16 address) const { return address == 0xFF46; }
@@ -331,6 +333,7 @@ void Ppu::render_scanline_background() {
     const auto tile_map_address = m_lcd.get_background_tile_map_start_address();
 
     const auto screen_y = get_line_number();
+    const auto palette = m_lcd.bg_palette;
 
     for (int screen_x = 0; screen_x < screen_width; ++screen_x) {
         // Apply scroll offset
@@ -361,8 +364,12 @@ void Ppu::render_scanline_background() {
         const auto tile_address = tile_set_address + tile_id * 16;
 
         const u8 *tile_data = m_vram.data() + (tile_address - m_vram.first_address);
-        const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
-        m_screen.set_pixel(screen_x, screen_y, tile_pixel);
+        const auto tile_color_id = get_tile_px(tile_data, local_x, local_y);
+
+        // Apply palette
+        const auto tile_color_value = decode_palette(palette, tile_color_id);
+
+        m_screen.set_pixel(screen_x, screen_y, tile_color_value);
 
         // TODO GBC: Something about flipped x/y background tiles?
     }
@@ -400,13 +407,27 @@ void Ppu::render_scanline_objects() {
             }
 
             // Don't draw on prioritized background
-            const auto existing_px = m_screen.get_pixel(screen_x, screen_y);
-            if (object.background_has_priority() && existing_px != 0) {
+            if (const auto existing_px = m_screen.get_pixel(screen_x, screen_y);
+                object.background_has_priority() && existing_px != 0) {
                 continue;
             }
 
             const u8 *tile_data = m_vram.data() + 16 * object.m_tile_index;
-            const auto tile_pixel = get_tile_px(tile_data, local_x, local_y);
+            const auto tile_pixel_index = get_tile_px(tile_data, local_x, local_y);
+
+            // TODO: Drawing priority
+            //       When opaque pixels from two different objects overlap, which pixel ends up being displayed is
+            //       determined by another kind of priority: the pixel belonging to the higher-priority object wins.
+            //       -
+            //       However, this priority is determined differently when in CGB mode. In Non - CGB mode, the smaller
+            //       the X coordinate, the higher the priority.When X coordinates are identical, the object located
+            //       first in OAM has higher priority.In CGB mode, only the object’ s location in OAM determines its
+            //       priority. The earlier the object, the higher its priority.
+            if (tile_pixel_index == 0) continue;
+
+            const auto palette = m_lcd.obj_palette[object.get_dmg_palette()];
+            const auto tile_pixel_value = decode_palette(palette, tile_pixel_index);
+
             // spdlog::error("Tile {:02x} @ {}, {} (height is {}) {:04x}. Setting {}, {}  ({}, {}) = {}",
             //               object.m_tile_index, object.m_x, object.m_y, m_lcd.get_object_height(),
             //               m_vram.first_address + 16 * object.m_tile_index, screen_x, screen_y, local_x, local_y,
@@ -418,7 +439,7 @@ void Ppu::render_scanline_objects() {
             //                        : object.m_tile_index == 0x18 ? 2
             //                                                      : 3);
             // } else {
-            m_screen.set_pixel(screen_x, screen_y, tile_pixel);
+            m_screen.set_pixel(screen_x, screen_y, tile_pixel_value);
             // }
         }
     }

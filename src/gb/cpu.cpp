@@ -695,7 +695,7 @@ bool Cpu::step() {
         // Exit halt status on any interrupt, even if not handled
         if (has_pending_interrupt()) {
             m_halted = false;
-            spdlog::info("Unhalted");
+            // spdlog::info("Unhalted");
         }
     }
 

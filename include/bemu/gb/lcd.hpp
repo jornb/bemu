@@ -61,7 +61,25 @@ struct Lcd : MemoryRegion<0xFF40, Lcd> {
     u8 ly_compare = 0;
 
     u8 dma = 0;
+
+    /// FF47 - BGP (Non-CGB Mode only): BG palette data
+    ///
+    /// This register assigns gray shades to the color IDs of the BG and Window tiles.
+    ///           | 7  6 | 5  4 | 3  2 | 1  0 |
+    /// Color for | ID 3 | ID 2 | ID 1 | ID 0 |
+    ///
+    /// Each of the two-bit values map to a color thusly:
+    ///     * 0: White
+    ///     * 1: Light gray
+    ///     * 2: Dark gray
+    ///     * 3: Black
+    ///
+    /// In CGB Mode the color palettes are taken from CGB palette memory instead.
     u8 bg_palette = 0xFC;
+
+    /// FF48 - FF49: OBP0, OBP1 (Non-CGB Mode only): OBJ palette 0, 1 data
+    /// These registers assigns gray shades to the color indexes of the OBJs that use the corresponding palette. They
+    /// work exactly like BGP, except that the lower two bits are ignored because color index 0 is transparent for OBJs.
     u8 obj_palette[2] = {0xFF, 0xFF};
     u8 window_y = 0;
     u8 window_x = 0;
