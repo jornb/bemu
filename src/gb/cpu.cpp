@@ -695,7 +695,7 @@ bool Cpu::step() {
         // Exit halt status on any interrupt, even if not handled
         if (has_pending_interrupt()) {
             m_halted = false;
-            // spdlog::info("Unhalted");
+            spdlog::info("Unhalted");
         }
     }
 
@@ -723,7 +723,7 @@ void Cpu::execute_next_instruction() {
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    // spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::trace);
 
     std::string prefix =
         !spdlog::should_log(spdlog::level::trace)

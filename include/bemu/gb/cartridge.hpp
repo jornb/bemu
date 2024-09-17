@@ -1,8 +1,8 @@
 #pragma once
 
-#include <optional>
 #include <string>
 #include <vector>
+#include <stdexcept>
 
 #include "ram.hpp"
 #include "types.hpp"
@@ -59,6 +59,22 @@ enum class RamSizeType : u8 {
     Kb64 = 0x05,   ///< 8 banks of 8 KiB each
     Kb128 = 0x04,  ///< 16 banks of 8 KiB each
 };
+
+inline int num_rom_banks(RomSizeType t) {
+    switch (t) {
+        case RomSizeType::Kb32_bank2: return 2;
+        case RomSizeType::Kb64_bank4: return 4;
+        case RomSizeType::Kb128_bank8: return 8;
+        case RomSizeType::Kb256_bank16: return 16;
+        case RomSizeType::Kb512_bank32: return 32;
+        case RomSizeType::Kb1024_bank64: return 64;
+        case RomSizeType::Kb2048_bank128: return 128;
+        case RomSizeType::Kb4096_bank256: return 256;
+        case RomSizeType::Kb8192_bank512: return 512;
+        default:
+            throw std::runtime_error("Unknown ROM size");
+    }
+}
 
 #pragma pack(push, 1)
 /// Each cartridge contains a header, located at the address range $0100-$014F.

@@ -31,5 +31,7 @@ void Emulator::add_cycles(const u16 cycles) {
 
         // TODO: Add an extra cycle in double-speed mode
         m_bus.m_timer.cycle_tick();
+
+        m_bus.m_joypad.cycle_tick();
     }
 }

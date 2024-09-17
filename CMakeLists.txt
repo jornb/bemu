@@ -16,7 +16,7 @@ add_executable(bemugb
         src/gb/cpu.cpp
         src/gb/cpu_cb.cpp
         src/gb/emulator.cpp
-        src/gb/io.cpp
+        src/gb/joypad.cpp
         src/gb/lcd.cpp
 #        src/gb/main.cpp
         src/gb/ppu.cpp

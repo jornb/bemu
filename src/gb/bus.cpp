@@ -23,7 +23,10 @@ using namespace bemu::gb;
 // 0xFF80 - 0xFFFE : Zero Page
 
 Bus::Bus(Emulator& emulator)
-    : m_emulator(emulator), m_ppu(*this, m_lcd, m_emulator.m_screen, m_emulator.m_cpu), m_timer(m_emulator.m_cpu) {}
+    : m_emulator(emulator),
+      m_joypad(m_emulator.m_cpu),
+      m_ppu(*this, m_lcd, m_emulator.m_screen, m_emulator.m_cpu),
+      m_timer(m_emulator.m_cpu) {}
 
 u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     if (add_cycles) m_emulator.add_cycles();
@@ -52,6 +55,10 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         return m_audio.read(address);
     }
 
+    if (m_wave_pattern.contains(address)) {
+        return m_wave_pattern.read(address);
+    }
+
     if (m_serial.contains(address)) {
         return m_serial.read_memory(address);
     }
@@ -60,13 +67,18 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
         return m_timer.read_memory(address);
     }
 
+    if (m_joypad.contains(address)) {
+        return m_joypad.read_memory(address);
+    }
+
+    if (m_lcd.contains(address)) {
+        return m_lcd.read_memory(address);
+    }
+
     if (0xE000 <= address && address <= 0xFDFF) {
         return 0x00;
     }
 
-    if (address >= 0xFF00 && address <= 0xFF7F) {
-        return m_io.read(address);
-    }
     if (0xFEA0 <= address && address <= 0xFEFF) {
         // Nintendo indicates use of this area is prohibited. This area returns $FF when OAM is blocked, and otherwise
         // the behavior depends on the hardware revision.
@@ -80,9 +92,9 @@ u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
     //     return 0x00;
     // }
 
-    // static u8 val = 0x00;  /// FIXME
-    // return val++;
-    throw std::runtime_error(fmt::format("Unsupported memory address (read) {:04x}", address));
+    spdlog::error("Unsupported memory address (read) {:04x}", address);
+    // throw std::runtime_error(fmt::format("Unsupported memory address (read) {:04x}", address));
+    return 0x00;
 }
 
 void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
@@ -112,6 +124,10 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
         return m_audio.write(address, value);
     }
 
+    if (m_wave_pattern.contains(address)) {
+        return m_wave_pattern.write(address, value);
+    }
+
     if (m_serial.contains(address)) {
         return m_serial.write_memory(address, value);
     }
@@ -120,20 +136,26 @@ void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {
         return m_timer.write_memory(address, value);
     }
 
+    if (m_joypad.contains(address)) {
+        return m_joypad.write_memory(address, value);
+    }
+
+    if (m_lcd.contains(address)) {
+        return m_lcd.write_memory(address, value);
+    }
+
     // Reserved - echo ram
     if (0xE000 <= address && address <= 0xFDFF) {
         return;
     }
 
-    if (address >= 0xFF00 && address <= 0xFF7F) {
-        return m_io.write(address, value);
-    }
     if (0xFEA0 <= address && address <= 0xFEFF) {
         // Reserved
         return;
     }
 
-    throw std::runtime_error(fmt::format("Unsupported memory address (write) {:04x}", address));
+    spdlog::error("Unsupported memory address (write) {:04x}", address);
+    // throw std::runtime_error(fmt::format("Unsupported memory address (write) {:04x}", address));
 }
 
 u16 Bus::read_u16(const u16 address, const bool add_cycles) const {

@@ -87,7 +87,13 @@ void Cartridge::write(const u16 address, const u8 value) {
     //       Bank.
     //       https://gbdev.io/pandocs/MBC1.html
     if (0x2000 <= address <= 0x3FFF) {
+        // Mask to 5-bit number
         m_rom_bank_number = value & 0b11111;
+
+        // Ignore banks higher than what we have
+        m_rom_bank_number %= num_rom_banks(header().rom_size);
+
+        // Writing 0 behaves as if 1 was written
         if (m_rom_bank_number == 0) m_rom_bank_number = 1;
     }
 

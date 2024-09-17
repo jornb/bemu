@@ -21,4 +21,19 @@ ApplicationWindow {
 
         image: ctxEmulator.image
     }
+
+    Item {
+        anchors.fill: parent
+        focus: true
+
+        Keys.onPressed: (event) => {
+            ctxEmulator.key_pressed(event.key);
+            event.accepted = true;
+        }
+
+        Keys.onReleased: (event) => {
+            ctxEmulator.key_released(event.key);
+            event.accepted = true;
+        }
+    }
 }

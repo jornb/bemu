@@ -40,10 +40,15 @@ int main(int argc, char **argv) {
         QGuiApplication app(argc, argv);
         QQmlApplicationEngine engine;
 
-        std::thread t{[&] { emulator.run(); }};
+        std::thread t{[&] {
+            try {
+                emulator.run();
+            } catch (const std::exception &ex) {
+                spdlog::critical(ex.what());
+            }
+        }};
 
-        auto gui_emulator = std::make_shared<GuiEmulator>();
-        emulator.m_callback_screen_rendered = [&] { gui_emulator->on_screen_rendered(emulator.m_screen); };
+        auto gui_emulator = std::make_shared<GuiEmulator>(emulator);
 
         qmlRegisterType<::Screen>("bemu.gb", 1, 0, "Screen");
         engine.rootContext()->setContextProperty("ctxEmulator", gui_emulator.get());
