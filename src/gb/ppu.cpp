@@ -62,7 +62,7 @@ void DmaState::cycle_tick() {
     const auto destination_address = 0xFE00 + m_current_byte;
     ++m_current_byte;
 
-    const auto data = m_bus.read_u8(source_address, false);
+    const auto data = m_bus.read_u8(source_address);
     if (!m_oam.contains(destination_address)) {
         m_active = false;
     } else {

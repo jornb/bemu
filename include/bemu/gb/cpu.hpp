@@ -62,7 +62,7 @@ bool is_16bit(OperandDescription reg);
 struct Cpu;
 struct CpuInstruction;
 
-using instruction_function_t = void (Cpu::*)(const std::string &debug_prefix, const CpuInstruction &instruction);
+using instruction_function_t = void (Cpu::*)(const std::string &debug_prefix, const CpuInstruction &, bool &branched);
 
 struct CpuInstruction {
     instruction_function_t m_handler = nullptr;
@@ -189,10 +189,10 @@ struct Cpu {
     u16 fetch_u16();  ///< Fetch u16 from program counter, little-endian
 
     /// Read 8-bit "register", using 16-bit registers as address
-    u8 read_data_u8(Register reg, bool add_cycles = true);
+    u8 read_data_u8(Register reg);
 
     /// Write 8-bit "register", using 16-bit registers as address
-    void write_data_u8(Register reg, u8 value, bool add_cycles = true);
+    void write_data_u8(Register reg, u8 value);
 
     void stack_push8(u8 value);
     u8 stack_pop8();
@@ -200,89 +200,89 @@ struct Cpu {
     u16 stack_pop16();
 
     bool step();
-    void execute_next_instruction();
-    void execute_interrupts();
+    u8 execute_next_instruction();
+    u8 execute_interrupts();
 
-    // bool execute_cb(const std::string &debug_prefix);
+    // void execute_cb(const std::string &debug_prefix);
     //
-    // bool execute_ld(const std::string &debug_prefix, u8 opcode);
-    // bool execute_ld_d(const std::string &debug_prefix, Register reg);
+    // void execute_ld(const std::string &debug_prefix, u8 opcode);
+    // void execute_ld_d(const std::string &debug_prefix, Register reg);
     // void execute_ld(u16 address, Register reg);                                            ///< from reg into address
     // void execute_ld(Register reg, u16 address);                                            ///< from address into reg
-    // bool execute_ld_r8_r8(const std::string &debug_prefix, Register reg1, Register reg2);  ///< from reg into reg
-    // // bool execute_ld_r8_hl(const std::string &debug_prefix, Register reg1);  ///< from (HL) into reg
+    // void execute_ld_r8_r8(const std::string &debug_prefix, Register reg1, Register reg2);  ///< from reg into reg
+    // // void execute_ld_r8_hl(const std::string &debug_prefix, Register reg1);  ///< from (HL) into reg
     //
-    // bool execute_inc(const std::string &debug_prefix, u8 opcode);
-    // bool execute_inc_r8(const std::string &debug_prefix, Register reg);
-    // bool execute_inc_r16(const std::string &debug_prefix, Register reg);
+    // void execute_inc(const std::string &debug_prefix, u8 opcode);
+    // void execute_inc_r8(const std::string &debug_prefix, Register reg);
+    // void execute_inc_r16(const std::string &debug_prefix, Register reg);
     //
-    // bool execute_dec(const std::string &debug_prefix, u8 opcode);
-    // bool execute_dec_r8(const std::string &debug_prefix, Register reg);
-    // bool execute_dec_r16(const std::string &debug_prefix, Register reg);
+    // void execute_dec(const std::string &debug_prefix, u8 opcode);
+    // void execute_dec_r8(const std::string &debug_prefix, Register reg);
+    // void execute_dec_r16(const std::string &debug_prefix, Register reg);
     //
-    // bool execute_xor(const std::string &debug_prefix, u8 opcode);
+    // void execute_xor(const std::string &debug_prefix, u8 opcode);
     // void execute_xor_reg(const std::string &debug_prefix, Register input_reg);
     //
-    // bool execute_cp(const std::string &debug_prefix, u8 opcode);
+    // void execute_cp(const std::string &debug_prefix, u8 opcode);
     // void execute_cp(const std::string &debug_prefix, Register reg);
     //
-    // bool execute_and(const std::string &debug_prefix, u8 opcode);
-    // bool execute_and(const std::string &debug_prefix, Register reg);
+    // void execute_and(const std::string &debug_prefix, u8 opcode);
+    // void execute_and(const std::string &debug_prefix, Register reg);
     //
-    // bool execute_sub(const std::string &debug_prefix, u8 opcode);
-    // bool execute_sub(const std::string &debug_prefix, Register reg);
+    // void execute_sub(const std::string &debug_prefix, u8 opcode);
+    // void execute_sub(const std::string &debug_prefix, Register reg);
     //
-    // bool execute_call(const std::string &debug_prefix, u8 opcode);
-    // bool execute_call(const std::string &debug_prefix, Condition condition);
+    // void execute_call(const std::string &debug_prefix, u8 opcode);
+    // void execute_call(const std::string &debug_prefix, Condition condition);
 
-    void execute_noop(const std::string &dbg, const CpuInstruction &instruction);
-    void execute_stop(const std::string &dbg, const CpuInstruction &instruction);
-    void execute_halt(const std::string &dbg, const CpuInstruction &instruction);
-    void execute_ld(const std::string &dbg, const CpuInstruction &instruction);     ///< Load
-    void execute_ld_f8(const std::string &dbg, const CpuInstruction &instruction);  ///< Load, special 0xF8 version
-    void execute_inc(const std::string &dbg, const CpuInstruction &instruction);    ///< Increment
-    void execute_dec(const std::string &dbg, const CpuInstruction &instruction);    ///< Decrement
-    void execute_add(const std::string &dbg, const CpuInstruction &instruction);    ///< Add
-    void execute_adc(const std::string &dbg, const CpuInstruction &instruction);    ///< Add with carry
-    void execute_sub(const std::string &dbg, const CpuInstruction &instruction);    ///< Sutract
-    void execute_sbc(const std::string &dbg, const CpuInstruction &instruction);    ///< Subtract with carry
-    void execute_cp(const std::string &dbg, const CpuInstruction &instruction);     ///< Compare
-    void execute_and(const std::string &dbg, const CpuInstruction &instruction);    ///< Bitwise AND
-    void execute_or(const std::string &dbg, const CpuInstruction &instruction);     ///< Bitwise OR
-    void execute_xor(const std::string &dbg, const CpuInstruction &instruction);    ///< Bitwise XOR
-    void execute_jp(const std::string &dbg, const CpuInstruction &instruction);     ///< Absolute jump
-    void execute_call(const std::string &dbg, const CpuInstruction &instruction);   ///< Call function
-    void execute_rst(const std::string &dbg, const CpuInstruction &instruction);    ///< Restart/call function
-    void execute_ret(const std::string &dbg, const CpuInstruction &instruction);    ///< Return from function
-    void execute_reti(const std::string &dbg, const CpuInstruction &instruction);   ///< Return from interrupt
-    void execute_sra(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Right Arithmetic
-    void execute_srl(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Right Logical
-    void execute_rrc(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right Circular
-    void execute_rrca(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Right Circular A
-    void execute_rr(const std::string &dbg, const CpuInstruction &instruction);     ///< Rotate Right
-    void execute_rra(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Right A
-    void execute_sla(const std::string &dbg, const CpuInstruction &instruction);    ///< Shift Left Arithmetic
-    void execute_rlc(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left Circular
-    void execute_rlca(const std::string &dbg, const CpuInstruction &instruction);   ///< Rotate Left Circular A
-    void execute_rl(const std::string &dbg, const CpuInstruction &instruction);     ///< Rotate Left
-    void execute_rla(const std::string &dbg, const CpuInstruction &instruction);    ///< Rotate Left A
-    void execute_push(const std::string &dbg, const CpuInstruction &instruction);   ///< Stack push
-    void execute_pop(const std::string &dbg, const CpuInstruction &instruction);    ///< Stack pop
-    void execute_scf(const std::string &dbg, const CpuInstruction &instruction);    ///< Set carry flag
-    void execute_ccf(const std::string &dbg, const CpuInstruction &instruction);    ///< Compliment carry flag
-    void execute_cpl(const std::string &dbg, const CpuInstruction &instruction);    ///< Compliment accumulator
-    void execute_daa(const std::string &dbg, const CpuInstruction &instruction);    ///< Decimal Adjust Accumulator
-    void execute_bit(const std::string &dbg, const CpuInstruction &instruction);    ///< Test bit
-    void execute_set(const std::string &dbg, const CpuInstruction &instruction);    ///< Set bit
-    void execute_res(const std::string &dbg, const CpuInstruction &instruction);    ///< Clear bit
-    void execute_swap(const std::string &dbg, const CpuInstruction &instruction);   ///< Swap nibbles
+    void execute_noop(const std::string &dbg, const CpuInstruction &, bool &branched);
+    void execute_stop(const std::string &dbg, const CpuInstruction &, bool &branched);
+    void execute_halt(const std::string &dbg, const CpuInstruction &, bool &branched);
+    void execute_ld(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Load
+    void execute_ld_f8(const std::string &dbg, const CpuInstruction &, bool &branched);  ///< Load, special 0xF8 version
+    void execute_inc(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Increment
+    void execute_dec(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Decrement
+    void execute_add(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Add
+    void execute_adc(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Add with carry
+    void execute_sub(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Sutract
+    void execute_sbc(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Subtract with carry
+    void execute_cp(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Compare
+    void execute_and(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Bitwise AND
+    void execute_or(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Bitwise OR
+    void execute_xor(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Bitwise XOR
+    void execute_jp(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Absolute jump
+    void execute_call(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Call function
+    void execute_rst(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Restart/call function
+    void execute_ret(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Return from function
+    void execute_reti(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Return from interrupt
+    void execute_sra(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Shift Right Arithmetic
+    void execute_srl(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Shift Right Logical
+    void execute_rrc(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Rotate Right Circular
+    void execute_rrca(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Rotate Right Circular A
+    void execute_rr(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Rotate Right
+    void execute_rra(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Rotate Right A
+    void execute_sla(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Shift Left Arithmetic
+    void execute_rlc(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Rotate Left Circular
+    void execute_rlca(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Rotate Left Circular A
+    void execute_rl(const std::string &dbg, const CpuInstruction &, bool &branched);     ///< Rotate Left
+    void execute_rla(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Rotate Left A
+    void execute_push(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Stack push
+    void execute_pop(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Stack pop
+    void execute_scf(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Set carry flag
+    void execute_ccf(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Compliment carry flag
+    void execute_cpl(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Compliment accumulator
+    void execute_daa(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Decimal Adjust Accumulator
+    void execute_bit(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Test bit
+    void execute_set(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Set bit
+    void execute_res(const std::string &dbg, const CpuInstruction &, bool &branched);    ///< Clear bit
+    void execute_swap(const std::string &dbg, const CpuInstruction &, bool &branched);   ///< Swap nibbles
 
     /// Disables interrupt handling by setting IME=0, and cancelling any scheduled effects of the EI instruction (if
     /// any)
-    void execute_di(const std::string &dbg, const CpuInstruction &instruction);
+    void execute_di(const std::string &dbg, const CpuInstruction &, bool &branched);
 
     /// Schedules interrupt handling to be enabled after the next machine cycle
-    void execute_ei(const std::string &dbg, const CpuInstruction &instruction);
+    void execute_ei(const std::string &dbg, const CpuInstruction &, bool &branched);
 
     /// Format operand to string
     std::string to_string(const OperandDescription &op) const;

@@ -28,10 +28,10 @@ struct Bus {
 
     explicit Bus(Emulator &emulator);
 
-    u8 read_u8(u16 address, bool add_cycles = true) const;
-    void write_u8(u16 address, u8 value, bool add_cycles = true);
+    u8 read_u8(u16 address) const;
+    void write_u8(u16 address, u8 value);
 
-    u16 read_u16(u16 address, bool add_cycles = true) const;
-    void write_u16(u16 address, u16 value, bool add_cycles = true);
+    u16 read_u16(u16 address) const;
+    void write_u16(u16 address, u16 value);
 };
 }  // namespace bemu::gb
