@@ -175,6 +175,7 @@ private:
 
     bool m_ram_enabled = true;
     std::array<RAM<0xA000, 0xBFFF>, 16> m_external_ram_banks{};
+    u8 m_ram_bank_number = 0;
 };
 
 }  // namespace bemu::gb

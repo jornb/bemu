@@ -1,4 +1,5 @@
 #include <spdlog/fmt/fmt.h>
+#include <spdlog/spdlog.h>
 
 #include <bemu/gb/cartridge.hpp>
 #include <fstream>
@@ -31,14 +32,14 @@ Cartridge Cartridge::from_file(const std::string& filename) {
 }
 
 bool Cartridge::contains(const u16 address) const {
-    return address <= 0x7FFF || m_external_ram_banks[0].contains(address);
+    return address <= 0x7FFF || m_external_ram_banks[m_ram_bank_number].contains(address);
 }
 
 u8 Cartridge::read(const u16 address) const {
     // TODO: Implement bank switching
-    if (m_external_ram_banks[0].contains(address)) {
+    if (m_external_ram_banks[m_ram_bank_number].contains(address)) {
         if (m_ram_enabled) {
-            return m_external_ram_banks[0].read(address);
+            return m_external_ram_banks[m_ram_bank_number].read(address);
         }
         return 0xFF;
     }
@@ -53,10 +54,11 @@ u8 Cartridge::read(const u16 address) const {
     if (a >= m_data.size()) {
         throw std::runtime_error("Cartridge::read: address out of bounds");
     }
+
     return m_data.at(a);
 }
 
-void Cartridge::write(const u16 address, const u8 value) {
+void Cartridge::write(const u16 address, u8 value) {
     // 0000-1FFF - RAM Enable (Write Only)
     //
     // Before external RAM can be read or written, it must be enabled by writing $A to anywhere in this address space.
@@ -67,7 +69,7 @@ void Cartridge::write(const u16 address, const u8 value) {
     // during power down of the Game Boy or removal of the cartridge. Once the cartridge has completely lost power from
     // the Game Boy, the RAM is automatically disabled to protect it.
     if (address <= 0x1FFF) {
-        m_ram_enabled = value & 0xF == 0xA;
+        m_ram_enabled = (value & 0xF) == 0xA;
     }
 
     // 2000-3FFF - ROM Bank Number (Write Only)
@@ -86,15 +88,17 @@ void Cartridge::write(const u16 address, const u8 value) {
     //       supply an additional 2 bits for the effective bank number: Selected ROM Bank = (Secondary Bank << 5) + ROM
     //       Bank.
     //       https://gbdev.io/pandocs/MBC1.html
-    if (0x2000 <= address <= 0x3FFF) {
+    else if (0x2000 <= address && address <= 0x3FFF) {
         // Mask to 5-bit number
-        m_rom_bank_number = value & 0b11111;
-
-        // Ignore banks higher than what we have
-        m_rom_bank_number %= num_rom_banks(header().rom_size);
+        value = value & 0b11111;
 
         // Writing 0 behaves as if 1 was written
-        if (m_rom_bank_number == 0) m_rom_bank_number = 1;
+        if (value == 0) value = 1;
+
+        // Ignore banks higher than what we have
+        value %= num_rom_banks(header().rom_size);
+
+        m_rom_bank_number = value;
     }
 
     // TODO: 4000–5FFF - RAM Bank Number - or - Upper Bits of ROM Bank Number (Write Only)
@@ -104,6 +108,9 @@ void Cartridge::write(const u16 address, const u8 value) {
     //       In 1MB MBC1 multi-carts (see below), this 2-bit register is instead applied to bits 4-5 of the ROM bank
     //       number and the top bit of the main 5-bit main ROM banking register is ignored.
     //       https://gbdev.io/pandocs/MBC1.html
+    else if (0x4000 <= address && address <= 0x5FFF) {
+        m_ram_bank_number = value & 0b11;
+    }
 
     // TODO: 6000–7FFF - Banking Mode Select (Write Only)
     //       This 1-bit register selects between the two MBC1 banking modes, controlling the behaviour of the secondary
@@ -111,11 +118,18 @@ void Cartridge::write(const u16 address, const u8 value) {
     //       ≤ 512 KiB ROM) this mode select has no observable effect. The program may freely switch between the two
     //       modes at any time.
     //       https://gbdev.io/pandocs/MBC1.html
+    else if (0x6000 <= address && address <= 0x7FFF) {
+        // m_ram_bank_number = value & 0b11;
+        const u8 mode = value & 0b1;
+        if (mode != 0) {
+            throw std::runtime_error("Advanced banking mode not implemented");
+        }
+    }
 
     // TODO: Implement bank switching
-    if (m_external_ram_banks[0].contains(address)) {
+    else if (m_external_ram_banks[m_ram_bank_number].contains(address)) {
         if (m_ram_enabled) {
-            m_external_ram_banks[0].write(address, value);
+            m_external_ram_banks[m_ram_bank_number].write(address, value);
         }
 
         return;
