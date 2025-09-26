@@ -683,7 +683,7 @@ void Cpu::set_pending_interrupt(const InterruptType type, const bool pending_int
     set_bit(m_interrupt_request_flags, static_cast<u8>(type), pending_interrupt);
 }
 
-bool Cpu::has_pending_interrupt() const { return m_interrupt_request_flags & 0b11111 > 0; }
+bool Cpu::has_pending_interrupt() const { return m_interrupt_request_flags & (0b11111 > 0); }
 
 u8 Cpu::peek_u8() const { return m_emulator.m_bus.read_u8(m_registers.pc); }
 
@@ -737,8 +737,8 @@ u16 Cpu::stack_pop16() {
 bool Cpu::step() {
     if (!m_halted) {
         // Handle interrupts
-        if (m_interrupt_master_enable && has_pending_interrupt()) {
-            m_emulator.add_cycles(execute_interrupts());
+        if (auto c = execute_interrupts(); c > 0) {
+            m_emulator.add_cycles(c);
             m_set_interrupt_master_enable_next_cycle = false;
         } else {
             // Normal instruction
@@ -834,6 +834,8 @@ u8 Cpu::execute_next_instruction() {
 }
 
 u8 Cpu::execute_interrupts() {
+    if (!m_interrupt_master_enable) return 0;
+
     for (u8 bit = 0; bit < 5; ++bit) {
         if (get_bit(m_interrupt_request_flags, bit) && get_bit(m_interrupt_enable_flags, bit)) {
             // Clear the interrupt request flag
