@@ -29,72 +29,81 @@ Bus::Bus(Emulator& emulator)
       m_timer(m_emulator.m_cpu) {}
 
 u8 Bus::read_u8(const u16 address, const bool add_cycles) const {
-    if (add_cycles) m_emulator.add_cycles();
+    auto x = [&] {
 
-    if (m_emulator.m_cpu.contains(address)) {
-        return m_emulator.m_cpu.read_memory(address);
+        // if (add_cycles) m_emulator.add_cycles();
+
+        if (m_emulator.m_cpu.contains(address)) {
+            return m_emulator.m_cpu.read_memory(address);
+        }
+
+        if (m_emulator.m_cartridge.contains(address)) {
+            return m_emulator.m_cartridge.read(address);
+        }
+
+        if (m_wram.contains(address)) {
+            return m_wram.read(address);
+        }
+
+        if (m_hram.contains(address)) {
+            return m_hram.read(address);
+        }
+
+        if (m_ppu.contains(address)) {
+            return m_ppu.read(address);
+        }
+
+        if (m_audio.contains(address)) {
+            return m_audio.read(address);
+        }
+
+        if (m_wave_pattern.contains(address)) {
+            return m_wave_pattern.read(address);
+        }
+
+        if (m_serial.contains(address)) {
+            return m_serial.read_memory(address);
+        }
+
+        if (m_timer.contains(address)) {
+            return m_timer.read_memory(address);
+        }
+
+        if (m_joypad.contains(address)) {
+            return m_joypad.read_memory(address);
+        }
+
+        if (m_lcd.contains(address)) {
+            return m_lcd.read_memory(address);
+        }
+
+        if (0xE000 <= address && address <= 0xFDFF) {
+            return (u8)0x00;
+        }
+
+        if (0xFEA0 <= address && address <= 0xFEFF) {
+            // Nintendo indicates use of this area is prohibited. This area returns $FF when OAM is blocked, and otherwise
+            // the behavior depends on the hardware revision.
+            //
+            // * On DMG, MGB, SGB, and SGB2, reads during OAM block trigger OAM corruption. Reads otherwise return $00.
+            return (u8)0x00;
+        }
+
+        // // Gameboy color only registers
+        // if (address == 0xFF4D) {
+        //     return 0x00;
+        // }
+
+        spdlog::error("Unsupported memory address (read) {:04x}", address);
+        // throw std::runtime_error(fmt::format("Unsupported memory address (read) {:04x}", address));
+        return (u8)0x00;
+    };
+
+    const auto y = x();
+    if (add_cycles) {
+        m_emulator.add_cycles();
     }
-
-    if (m_emulator.m_cartridge.contains(address)) {
-        return m_emulator.m_cartridge.read(address);
-    }
-
-    if (m_wram.contains(address)) {
-        return m_wram.read(address);
-    }
-
-    if (m_hram.contains(address)) {
-        return m_hram.read(address);
-    }
-
-    if (m_ppu.contains(address)) {
-        return m_ppu.read(address);
-    }
-
-    if (m_audio.contains(address)) {
-        return m_audio.read(address);
-    }
-
-    if (m_wave_pattern.contains(address)) {
-        return m_wave_pattern.read(address);
-    }
-
-    if (m_serial.contains(address)) {
-        return m_serial.read_memory(address);
-    }
-
-    if (m_timer.contains(address)) {
-        return m_timer.read_memory(address);
-    }
-
-    if (m_joypad.contains(address)) {
-        return m_joypad.read_memory(address);
-    }
-
-    if (m_lcd.contains(address)) {
-        return m_lcd.read_memory(address);
-    }
-
-    if (0xE000 <= address && address <= 0xFDFF) {
-        return 0x00;
-    }
-
-    if (0xFEA0 <= address && address <= 0xFEFF) {
-        // Nintendo indicates use of this area is prohibited. This area returns $FF when OAM is blocked, and otherwise
-        // the behavior depends on the hardware revision.
-        //
-        // * On DMG, MGB, SGB, and SGB2, reads during OAM block trigger OAM corruption. Reads otherwise return $00.
-        return 0x00;
-    }
-
-    // // Gameboy color only registers
-    // if (address == 0xFF4D) {
-    //     return 0x00;
-    // }
-
-    spdlog::error("Unsupported memory address (read) {:04x}", address);
-    // throw std::runtime_error(fmt::format("Unsupported memory address (read) {:04x}", address));
-    return 0x00;
+    return y;
 }
 
 void Bus::write_u8(const u16 address, const u8 value, const bool add_cycles) {

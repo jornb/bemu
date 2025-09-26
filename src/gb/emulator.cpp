@@ -26,11 +26,11 @@ void Emulator::add_cycles(const u16 cycles) {
         for (int d = 0; d < 4; d++) {
             ++m_ticks;
             m_bus.m_ppu.dot_tick();
+
+            // TODO: Add an extra cycle in double-speed mode
+            m_bus.m_timer.cycle_tick();
         }
         m_bus.m_ppu.cycle_tick();
-
-        // TODO: Add an extra cycle in double-speed mode
-        m_bus.m_timer.cycle_tick();
 
         m_bus.m_joypad.cycle_tick();
     }

@@ -8,7 +8,7 @@ namespace bemu::gb {
 struct Cpu;
 
 /// Timer and Divider Registers
-struct Timer : MemoryRegion<0xFF04, Timer> {
+struct Timer {
     explicit Timer(Cpu &cpu) : m_cpu{cpu} {}
 
     /// FF04 - DIV: Divider register
@@ -18,7 +18,7 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     /// again once stop mode ends. This also occurs during a speed switch.
     ///
     /// Note: The divider is affected by CGB double speed mode, and will increment at 32768Hz in double speed.
-    u8 m_divider = 0;
+    u8 m_divider = 0xAB;
 
     /// FF05 - TIMA: Timer counter
     ///
@@ -49,7 +49,7 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     /// Bit 2: Enable: Controls whether TIMA is incremented. Note that DIV is always counting, regardless of this bit.
     ///
     /// Note that writing to this register may increase TIMA once!
-    u8 m_control = 0;
+    u8 m_control = 0xF8;
 
     [[nodiscard]] bool contains(u16 address) const;
     [[nodiscard]] u8 read_memory(u16 address) const;
@@ -71,10 +71,16 @@ struct Timer : MemoryRegion<0xFF04, Timer> {
     /// double speed
     void cycle_tick();
 
-   private:
+   // private:
     Cpu &m_cpu;
 
     u8 m_cycle_ticks_since_div_update = 0;
     u16 m_cycle_ticks_since_tma_update = 0;
+
+
+    u16 div = 0xABCC;
+    u8 tima = 0;
+    u8 tma = 0;
+    u8 tac = 0;
 };
 }  // namespace bemu::gb
