@@ -4,10 +4,12 @@ project(bemu)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Qml Gui Quick)
+#find_package(Qt6 REQUIRED COMPONENTS Core Qml Gui Quick)
+#
+#set(CMAKE_AUTOMOC ON)
+#set(CMAKE_AUTORCC ON)
 
-set(CMAKE_AUTOMOC ON)
-set(CMAKE_AUTORCC ON)
+#find_package(OpenGL REQUIRED)
 
 add_executable(bemugb
         src/gb/gui.cpp
@@ -26,8 +28,11 @@ add_executable(bemugb
         src/gb/gui/screen.hpp
 )
 
-target_include_directories(bemugb PRIVATE include)
-target_link_libraries(bemugb PRIVATE spdlog::spdlog magic_enum::magic_enum Qt6::Core Qt6::Qml Qt6::Gui Qt6::Quick)
+target_include_directories(bemugb PRIVATE
+        include
+        third_party/olcPixelGameEngine
+)
+target_link_libraries(bemugb PRIVATE spdlog::spdlog magic_enum::magic_enum  -luser32 -lgdi32 -lopengl32 -lgdiplus -lShlwapi -ldwmapi)
 
 
 add_subdirectory(third_party)

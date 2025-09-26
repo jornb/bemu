@@ -1,4 +1,8 @@
 #pragma once
+#include <functional>
+#include <memory>
+#include <mutex>
+
 #include "bus.hpp"
 #include "cartridge.hpp"
 #include "cpu.hpp"
@@ -6,11 +10,7 @@
 #include "ppu.hpp"
 #include "screen.hpp"
 
-#include <memory>
-#include <functional>
-
 namespace bemu::gb {
-
 
 struct Emulator {
     Cartridge m_cartridge;
@@ -21,9 +21,10 @@ struct Emulator {
     bool m_paused = false;
     bool m_running = true;
     // bool m_die;
-    u64 m_ticks = 0;
+    u64 m_ticks = 23440324;
 
-    std::function<void()> m_callback_screen_rendered = []{};
+    std::function<void()> m_callback_screen_rendered = [] {};
+    std::function<void(const Screen&)> m_frame_callback = [](const Screen&) {};
 
     void run();
 

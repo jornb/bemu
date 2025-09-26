@@ -715,47 +715,50 @@ bool Cpu::step() {
 
 void Cpu::execute_next_instruction() {
     static u64 last_ticks = 0;  // FIXME
+    static u64 break_step = 67398;
+    static u64 next_break = break_step;
 
     // Get the original state debugging
     u16 pc = m_registers.pc;
+    u16 old_div = m_emulator.m_bus.m_timer.div;
 
     // Read the next opcode from the program counter
     auto ticks = m_emulator.m_ticks;
     auto opcode = fetch_u8();
 
-    spdlog::set_level(spdlog::level::trace);
+    // spdlog::set_level(last_ticks >= 244403280 ? spdlog::level::trace : spdlog::level::warn);
+    // spdlog::set_level(spdlog::level::trace);
+    spdlog::set_level(spdlog::level::warn);
 
     std::string prefix =
         !spdlog::should_log(spdlog::level::trace)
             ? ""
             : fmt::format(
-                  "{:08d} (+{:>2})    {:04x}    [AF={:04x} BC={:04x} DE={:04x} HL={:04x} SP={:04x}]    [{}{}{}{}]    "
-                  "({:02x} {:02x} {:02x})   ",
-                  ticks, ticks - last_ticks, pc, m_registers.get_u16(Register::AF), m_registers.get_u16(Register::BC),
-                  m_registers.get_u16(Register::DE), m_registers.get_u16(Register::HL), m_registers.sp,
-                  m_registers.get_z() ? "Z" : "-", m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-",
-                  m_registers.get_c() ? "C" : "-", opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
+                  "{:08d} (+{:>2}) {:08d}    {:04x}    [AF={:04x} BC={:04x} DE={:04x} HL={:04x} SP={:04x}]     "
+                  "[{}{}{}{}]     [DIV={:04x} TIMA={:02x} TNA={:02x} TAC={:02x}]    [LY={:02x}][STAT={:02x}]     ({:02x} "
+                  "{:02x} {:02x})   ",
+                  ticks, ticks - last_ticks, ticks - 23440324, pc, m_registers.get_u16(Register::AF),
+                  m_registers.get_u16(Register::BC), m_registers.get_u16(Register::DE),
+                  m_registers.get_u16(Register::HL), m_registers.sp, m_registers.get_z() ? "Z" : "-",
+                  m_registers.get_n() ? "N" : "-", m_registers.get_h() ? "H" : "-", m_registers.get_c() ? "C" : "-",
+
+                  old_div, m_emulator.m_bus.m_timer.tima, m_emulator.m_bus.m_timer.tma, m_emulator.m_bus.m_timer.tac,
+
+                  m_emulator.m_bus.m_lcd.ly, m_emulator.m_bus.m_lcd.m_status,
+
+                  opcode, m_emulator.m_bus.read_u8(m_registers.pc, false),
                   m_emulator.m_bus.read_u8(m_registers.pc + 1, false));
+
+    if (spdlog::should_log(spdlog::level::trace)) {
+        spdlog::trace("{}", prefix);
+    }
+    if (ticks >= next_break) {
+        next_break = ticks + break_step;
+    }
+    // if (last_ticks >= 24440328) {
+    // spdlog::trace("cpu_instr tracepoint");
+    // }
     last_ticks = ticks;
-    spdlog::trace("{}", prefix);
-
-    if (pc == 0xc255) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-    if (pc == 0xc25a) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-    if (pc == 0xc25f) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-    if (pc == 0xc263) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-    if (pc == 0xc36f) {
-        spdlog::trace("cpu_instr tracepoint: {}", prefix);
-    }
-
-    const auto *instruction_set = &m_instruction_handlers;
 
     if (opcode == 0xCB) {
         opcode = fetch_u8();

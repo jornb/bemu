@@ -161,6 +161,7 @@ void Ppu::dot_tick() {
         // spdlog::info("m_frame_number = {}", m_frame_number);
 
         m_bus.m_emulator.m_callback_screen_rendered();
+        m_bus.m_emulator.m_frame_callback(m_screen);
 
         // draw_output_screen();
 
